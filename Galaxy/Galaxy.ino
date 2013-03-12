@@ -1410,7 +1410,7 @@ const char led_chars[97][6] PROGMEM = {
   0x86,0x8b,0x92,0xa2,0xc2,0x00,  // Z9
   0x00,0xfe,0x82,0x82,0x00,0x00,  // [0
   0x00,0x00,0x00,0x00,0x00,0x00, //1 *** do not remove this empty char ***
-  0x00,0x82,0x82,0xfe,0x00,0x00,	// ]2
+  0x00,0x82,0x82,0xfe,0x00,0x00,  // ]2
   0x20,0x40,0x80,0x40,0x20,0x00,	// ^3
   0x02,0x02,0x02,0x02,0x02,0x00,	// _4
   0x00,0x80,0x40,0x20,0x00,0x00,	// `5
@@ -2559,19 +2559,31 @@ unsigned long usercolorscheme[8] = {
   red,orange,yellow,green,teal,blue,indigo,violet};//color scheme stored in ram 
 
 unsigned long getschemacolor(uint8_t y){
-  long color;
-
-  if(colorschemeselector==0){
+ 
+ switch(y){
+case 8:return 0x000000;   
+case 9: return 0xffffff;   
+case 10: return red;   
+case 11: return yellow;   
+case 12: return orange;   
+case 13: return green;   
+case 14: return blue;   
+case 15: return violet;   
+default: return (colorschemeselector>0) ? pgm_read_dword(&eightcolorschema[colorschemeselector][y]):usercolorscheme[y];
+ }
+/*  if(colorschemeselector==0){
 //    color = (y>7)?
-    hsv2rgb((y-8)*192,255,255);//:
-//    usercolorscheme[y%8];
+//    hsv2rgb((y-8)*192,255,255);//:
+    return usercolorscheme[y];
   }
   else{
   //color = (y>7)?
-  pgm_read_dword(&eightcolorschema[colorschemeselector][y%8]);//:
+ return pgm_read_dword(&eightcolorschema[colorschemeselector][y]);//:
  // hsv2rgb((y-8)*192,255,255);
   }
   return color;
+
+*/
 }
 void schemefade(byte idx) {
   long color,color2;
@@ -4728,9 +4740,13 @@ void picPOV(byte idx, byte imageSelector) {
     fxVars[idx][7]++;
   }
   for(int i=0; i<numPixels&fxVars[idx][2]-1; i++) {//this is for the remainder
-    *ptr++ = 0;
-    *ptr++ = 0;
-    *ptr++ = 0;
+        long colord = hsv2rgb(fxVars[idx][11], 255, 255);
+    
+        if((data>>i)&1){
+        *ptr++ = colord >> 16;
+        *ptr++ = colord >> 8;
+        *ptr++ = colord;
+        }
   }
   // if(fxVars[idx][3]>=fxVars[idx][4]){
   //   fxVars[idx][3]=0;
@@ -6930,4 +6946,3 @@ unsigned long threeway_max(double a, double b, double c) {
 unsigned long threeway_min(double a, double b, double c) {
   return min(a, min(b, c));
 }
-
