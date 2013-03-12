@@ -1408,7 +1408,7 @@ const char led_chars[97][6] PROGMEM = {
   0xc6,0x28,0x10,0x28,0xc6,0x00,  // X7
   0xe0,0x10,0x0e,0x10,0xe0,0x00,  // Y8
   0x86,0x8b,0x92,0xa2,0xc2,0x00,  // Z9
-  0x00,0xfe,0x82,0x82,0x00,0x00,	// [0
+  0x00,0xfe,0x82,0x82,0x00,0x00,  // [0
   0x00,0x00,0x00,0x00,0x00,0x00, //1 *** do not remove this empty char ***
   0x00,0x82,0x82,0xfe,0x00,0x00,	// ]2
   0x20,0x40,0x80,0x40,0x20,0x00,	// ^3
@@ -2562,14 +2562,14 @@ unsigned long getschemacolor(uint8_t y){
   long color;
 
   if(colorschemeselector==0){
-    color = (y>7)?
-    hsv2rgb((y-8)*192,255,255):
-    usercolorscheme[y%8];
+//    color = (y>7)?
+    hsv2rgb((y-8)*192,255,255);//:
+//    usercolorscheme[y%8];
   }
   else{
-  color = (y>7)?
-  pgm_read_dword(&eightcolorschema[colorschemeselector][y%8]):
-  hsv2rgb((y-8)*192,255,255);
+  //color = (y>7)?
+  pgm_read_dword(&eightcolorschema[colorschemeselector][y%8]);//:
+ // hsv2rgb((y-8)*192,255,255);
   }
   return color;
 }
@@ -6049,7 +6049,7 @@ long hsv2rgb(long h, byte s, byte v) {
   byte r, g, b, lo;
   int s1;
   long v1;
-  if(h==0) s=0,v=0;
+  //if(h==0) s=0,v=0;
   // Hue
   h %= 1536; // -1535 to +1535
   if(h < 0) h += 1536; // 0 to +1535
@@ -6616,9 +6616,9 @@ void EEPreadirc()
     irc[i] = firstTwoBytes + secondTwoBytes;
     if(serialoutput==true){
       Serial.print("Read code from eeprom spots ");
-      Serial.print(i);
+      Serial.print(i*4);
       Serial.print(" to ");
-      Serial.print(i + 3);
+      Serial.print(i*4 + 3);
       Serial.print(" as ");
       Serial.print(firstTwoBytes + secondTwoBytes, DEC);
       Serial.print(" in irc spot ");
@@ -6930,5 +6930,4 @@ unsigned long threeway_max(double a, double b, double c) {
 unsigned long threeway_min(double a, double b, double c) {
   return min(a, min(b, c));
 }
-
 
