@@ -4746,6 +4746,10 @@ void picPOV(byte idx, byte imageSelector) {
         *ptr++ = colord >> 16;
         *ptr++ = colord >> 8;
         *ptr++ = colord;
+        }else{
+        *ptr++ = 0;
+        *ptr++ = 0;
+        *ptr++ = 0;
         }
   }
   // if(fxVars[idx][3]>=fxVars[idx][4]){
