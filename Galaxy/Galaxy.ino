@@ -1,5 +1,5 @@
 
-#define galaxyversion 1.1 // version of this code. will be used for bluetooth handshake to determine capabilities
+#define galaxyversion 1.2 // version of this code.
 //flags
 boolean demo = true;
 boolean colordemo=false;
@@ -11,7 +11,6 @@ boolean compassoutput=false;
 boolean irsetupflag=false;
 uint8_t calflag; //compass calibration flag. -1 = recalibrate compass;0=get raw calibration data;1=do nothing
 boolean serialoutput=true;// will the serial respond?
-boolean uartoutput=true;// will the uart respond?
 //paramaters
 int pattern = -1;
 int nextspeed=0;
@@ -341,9 +340,6 @@ int readingsax[numReadingsax],readingsay[numReadingsay],readingsaz[numReadingsaz
 int indexax,indexay,indexaz; // the index of the current reading
 int totalax,totalay,totalaz; // the running total
 int averageax,averageay,averageaz;
-//##############bluetooth serial port
-HardwareSerial Uart = HardwareSerial();
-
 //#############compass stuff
 uint8_t error = 0;
 
@@ -1563,103 +1559,9 @@ long hsv2rgb(long h, byte s, byte v);
 char fixSin(int angle);
 char fixCos(int angle);
 
-// List of image effect and alpha channel rendering functions; the code for
-// each of these appears later in this file. Just a few to start with...
-// simply append new ones to the appropriate list here:
-
-
-// ---------------------------------------------------------------------------
-
-void bluetoothsetup(){
-  Serial.println("Setting up bluetooth module");
-  //inital baud rate of the bluetooth modules we use is 9600. I think we get the best performance
-  //out of 38400 baud because of the timing errors due to the prescaler. we are specifically not using nl/cr
-  //Uart.begin(9600);//change uart baud to match bt default
-  // Uart.print("AT+BAUD1"); //sets bluetooth uart baud at 1200
-  //  Uart.print("AT+BAUD2"); //sets bluetooth uart baud at 2400
-  //  Uart.print("AT+BAUD3"); //sets bluetooth uart baud at 4800
-  //  Uart.print("AT+BAUD4"); //sets bluetooth uart baud at 9600
-  //  Uart.print("AT+BAUD5"); //sets bluetooth uart baud at 19200
-  Uart.print("AT+BAUD6"); //sets bluetooth uart baud at 38400 //set bt uart at 38400, applies on next reboot
-  //  Uart.print("AT+BAUD7"); //sets bluetooth uart baud at 57600
-  //  Uart.print("AT+BAUD8"); //sets bluetooth uart baud at 115200
-  delay(1000);//wait a sec
-  Uart.print("AT+NAMEMax's Galaxy"); //sets name seen in bt
-  delay(1000);
-  Uart.print("AT+PIN1337");//sets pin, act like you know
-  delay(1000); 
-}
-void brutebluetooth(){ //mess your bluetooth chip up? not to fear. this will try all available baud rates and
-  int baudrate = 6; //when finished we will have a bt chip on 38400 baud
-  // Uart.print("AT+BAUD1"); //sets bluetooth uart baud at 1200
-  //  Uart.print("AT+BAUD2"); //sets bluetooth uart baud at 2400
-  //  Uart.print("AT+BAUD3"); //sets bluetooth uart baud at 4800
-  //  Uart.print("AT+BAUD4"); //sets bluetooth uart baud at 9600
-  //  Uart.print("AT+BAUD5"); //sets bluetooth uart baud at 19200
-  //   Uart.print("AT+BAUD6"); //sets bluetooth uart baud at 38400 
-  //  Uart.print("AT+BAUD7"); //sets bluetooth uart baud at 57600
-  //  Uart.print("AT+BAUD8"); //sets bluetooth uart baud at 115200
-  delay(1000);//wait a sec
-  Serial.println("This may take a while");
-  for(int i=0;i<10;i++){
-    Uart.begin(1200);
-    delay(1000);
-    Uart.print("AT+BAUD");
-    Uart.print(baudrate);
-    delay(1000);
-    Serial.print(".");
-    Uart.begin(2400);
-    delay(1000);
-    Uart.print("AT+BAUD");
-    Uart.print(baudrate);
-    delay(1000);
-    Serial.print(".");
-    Uart.begin(4800);
-    delay(1000);
-    Uart.print("AT+BAUD");
-    Uart.print(baudrate);
-    delay(1000);
-    Serial.print(".");
-    Uart.begin(9600);
-    delay(1000);
-    Uart.print("AT+BAUD");
-    Uart.print(baudrate);
-    delay(1000);
-    Serial.print(".");
-    Uart.begin(19200);
-    delay(1000);
-    Uart.print("AT+BAUD");
-    Uart.print(baudrate);
-    delay(1000);
-    Serial.print(".");
-    Uart.begin(38400);
-    delay(1000);
-    Uart.print("AT+BAUD");
-    Uart.print(baudrate);
-    delay(1000);
-    Serial.print(".");
-    Uart.begin(57600);
-    delay(1000);
-    Uart.print("AT+BAUD");
-    Uart.print(baudrate);
-    delay(1000);
-    Serial.print(".");
-    Uart.begin(115200);
-    delay(1000);
-    Uart.print("AT+BAUD");
-    Uart.print(baudrate);
-    delay(1000);
-    Serial.print(".");
-  }
-  Serial.println();
-  Serial.println("done");
-
-} 
-
 void setup() {
   //bring up our serial connections
   Serial.begin(115200);//start serial connection through usb 
-  Uart.begin(38400); //start serial connection to bluetooth module
   strip.begin();//start lpd8806 strip
 
   //check for demo mode flag in eeprom spot 256, set demo accordingly and
@@ -1983,23 +1885,6 @@ void compassread()
     }
   }
   yzheadingdegreescalibrated = map(yzheadingdegrees,yzheadingdegreesmin,yzheadingdegreesmax,0,360);
-
-
-
-  if (compassoutput==1){
-
-    Uart.print("xy");
-    Uart.println(xyheadingdegrees);
-    Uart.print("xz");
-    Uart.println(xzheadingdegrees);
-    Uart.print("yz");
-    Uart.println(yzheadingdegrees);
-    //delay(250);
-
-  }
-
-
-
   // Convert radians to degrees for readability.
   // float yzheadingDegrees = yzheading * 180/M_PI;
 
@@ -2114,8 +1999,6 @@ void others(){
       irsetup(true); 
     }  
   }
-  //  getSerial();
-  getUart();
   getSerial();
   compass.read();
   //  if (counter==255)calibrate(),counter=-255;
@@ -6473,11 +6356,11 @@ void getSerial(){
         Serial.println("Sending bluetooth config commands");
         Serial.println("This will take about 3 secconds");
       }
-      bluetoothsetup(); 
+      //bluetoothsetup(); 
       Serial.println("Sent.");
     }
     if( cmd == 'z' ) { //send bluetooth config command
-      brutebluetooth();
+//      brutebluetooth();
     }
     if( cmd == 'A' ) { //Enable accel output
       if(serialoutput==true){  
@@ -6496,137 +6379,6 @@ void getSerial(){
   }
 
 }
-
-
-
-void getUart(){
-  long num;
-  int i;
-  if(readUartString()) {
-    //   Serial.println(readUartString());
-    // irrecv.pause();
-    delay(10);
-    if(uartoutput==true){
-      //    Uart.println(urtInStr);
-    }
-    char ucmd = urtInStr[0]; // first char is command
-    char* urt = urtInStr;
-    while( *++urt == ' ' ); // got past any intervening whitespace
-    num = atol(urt); // the rest is arguments (maybe)
-    if( ucmd == 'J' ) { //
-      if(serialoutput==true){  
-        //     Serial.println(".");
-      }
-      for(i=0;i<8;i++){
-        num = atol(urt); // the rest is arguments (maybe)
-        //      num=num>>8;
-        usercolorscheme[i] = num;//what?
-
-        Serial.println(num, HEX);
-
-        while( *++urt != ' ' ){ // got to intervening whitespace
-
-        }
-        while( *++urt == ' ' ); // got past any intervening whitespace
-        //  *++str;
-        //   num = atoi(str); // the rest is arguments (maybe)
-
-      }
-      Serial.println();
-      colorschemeselector=0;
-      //  Serial.println("Read user color scheme");
-
-    }
-    if( ucmd == 'P' ) {//P means the next character is a pattern we are getting.
-      if(num>0){
-        pattern = num;//in 
-      }
-      tCounter=0;//start the transition
-    }
-    if( ucmd == 'C' ) {//C means color scheme read through atoi comes next
-      if(num>0){
-        colorschemeselector = num;//in
-      }
-    }
-    if( ucmd == 'c' ) {//C means color scheme read through atoi comes next
-      if(num>0){
-        colorschemeselector = num;//in
-      }
-    }
-
-    if( ucmd == 'B' ) {
-      brightness=num;//self explanitory.
-    }
-    if( ucmd == 'H' ) {//handshake. when recieved reply with 'ver#'
-      Uart.print("ver");
-      Uart.print(galaxyversion);
-    }
-    if( ucmd == 'R' ) {//re-init pattern
-      fxVars[0][0]=0;
-      //button=1;
-    }
-    if( ucmd == 'C' ) {//re-init pattern
-      //   fxVars[0][0]=0;
-      longbutton=1;
-    }
-    if( ucmd == 'A' ) {//re-init pattern
-      //   fxVars[0][0]=0;
-      opmode=1;
-    }
-
-    /*    if( ucmd == 'Q' ) {
-     
-     for (int i =0; i<ircsetup; i++){
-     Uart.print (irc[i]);
-     Uart.print(" , " );
-     Uart.println (i);
-     
-     }
-     Uart.println();
-     for (int i =0; i<ircsetup; i++){
-     Uart.print (irc2[i]);
-     Uart.print(" , " );
-     Uart.println (i);
-     }
-     }
-     */
-    /*    if( ucmd == 'I' ) {
-     //Timer1.detachInterrupt();
-     if(uartoutput==true){ 
-     Uart.println("Entering irsetup");
-     }
-     opmode=2;
-     }
-     //  boolean serialoutput=false;// will the serial respond?
-     */
-    if( ucmd == 'P' ) {//P means pattern number read through atoi comes next
-
-      pattern = num;//in
-      button=1;
-    }
-    if( ucmd == 'D' ) {//D means toggle demo mode
-      demo=!demo;
-      if(demo==1){
-        Uart.println("Demo mode enabled");
-      }
-      else{
-        Uart.println("Demo mode disabled");
-      }
-    }
-    //   if( ucmd == 'A' ) {//D means toggle demo mode
-    //     compassoutput=!compassoutput;
-    //     if(compassoutput==1){
-    //       Uart.println("compass output enabled");
-    //     }
-    //    else{
-    //       Uart.println("compass outputdisabled");
-    //     }
-    //   }
-    urtInStr[0] = 0; // say we've used the string
-    //irrecv.resume();  
-  }
-}
-
 //read a string from the serial and store it in an array
 //you must supply the array variable
 uint8_t readSerialString()
@@ -6640,22 +6392,6 @@ uint8_t readSerialString()
   int i = 0;
   while (Serial.available()) {
     serInStr[i] = Serial.read(); // FIXME: doesn't check buffer overrun
-    i++;
-  }
-  //serInStr[i] = 0; // indicate end of read string
-  return i; // return number of chars read
-}
-uint8_t readUartString()
-{
-  if(!Uart.available()) {
-    return 0;
-  }
-  delay(10); // wait a little for serial data
-
-  memset( serInStr, 0, sizeof(serInStr) ); // set it all to zero
-  int i = 0;
-  while (Uart.available()) {
-    urtInStr[i] = Uart.read(); // FIXME: doesn't check buffer overrun
     i++;
   }
   //serInStr[i] = 0; // indicate end of read string
