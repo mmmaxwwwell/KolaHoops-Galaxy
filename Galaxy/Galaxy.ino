@@ -1,5 +1,5 @@
 
-#define galaxyversion 1.1 // version of this code. will be used for bluetooth handshake to determine capabilities
+#define galaxyversion 1.2 // version of this code.
 //flags
 boolean demo = true;
 boolean colordemo=false;
