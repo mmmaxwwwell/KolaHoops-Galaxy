@@ -16,7 +16,7 @@ int pattern = -1;
 int nextspeed=0;
 byte colorschemeselector = 0;
 uint8_t brightness = 3; //lower=brighter
-uint16_t patternswitchspeed = 1500; //# of frames between pattern switches
+uint16_t patternswitchspeed = 1000; //# of frames between pattern switches
 uint8_t patternswitchspeedvariance = 0;//# of frames the pattern switch speed can vary + and - so total variance could be 2x 
 uint16_t transitionspeed = 30;// # of framestransition lasts 
 uint8_t transitionspeedvariance = 0;// # of frames transition lenght varies by, total var 2X, 1X in either + or -
@@ -1472,7 +1472,7 @@ const char led_chars[97][6] PROGMEM = {
   0x00,0xfe,0x82,0x82,0x00,0x00,  // [0
   0x00,0x00,0x00,0x00,0x00,0x00, //1 *** do not remove this empty char ***
   0x00,0x82,0x82,0xfe,0x00,0x00,  // ]2
-  0x20,0x40,0x80,0x40,0x20,0x00,	// ^3
+  0x20,0x40,0x80,0x40,0x20,0x00,  // ^3
   0x02,0x02,0x02,0x02,0x02,0x00,	// _4
   0x00,0x80,0x40,0x20,0x00,0x00,	// `5
   0x04,0x2a,0x2a,0x2a,0x1e,0x00,	// a6
@@ -6400,7 +6400,7 @@ void getSerial(){
       }
       Serial.println();
       for (int i =0; i<ircsetup; i++){
-        Serial.print (irc2[i]);
+        Serial.print (irc[i]);
         Serial.print(" , " );
         Serial.println (i);
       }
@@ -6764,7 +6764,7 @@ void irsetup(boolean feedback) {
     }
   }
 
-  if (i == ircsetup-1){
+  if (i == ircsetup){
     int i2;
     for (i = 0; i < ircsetup; i ++){
       if(serialoutput==true){  
@@ -6866,7 +6866,7 @@ void getir(){
       irrecv.resume();
       return;
     }
-    if (results.value == irc2[0]||results.value==2065 || results.value== 17) {//pattern down
+    if (results.value == irc[0]||results.value==2065 || results.value== 17) {//pattern down
       if(serialoutput==true){
         Serial.println("recognised 0 on ir");
       }//pattern ++
@@ -6874,7 +6874,7 @@ void getir(){
       button=1;
       tCounter=0;
     }
-    if (results.value == irc2[1]||results.value==2064 || results.value==16) {//pattern up
+    if (results.value == irc[1]||results.value==2064 || results.value==16) {//pattern up
       if(serialoutput==true){
         Serial.println("recognised 1 on ir");
       } 
@@ -6882,27 +6882,27 @@ void getir(){
       tCounter=0;
       //colorschemeselector++;
     }  
-    if (results.value == irc2[2]||results.value==2081 || results.value==33) {//color scheme down
+    if (results.value == irc[2]||results.value==2081 || results.value==33) {//color scheme down
       if(serialoutput==true){
         Serial.println("recognised 2 on ir");
       }
       colorschemeselector--;
       //color scheme --
     }
-    if (results.value == irc2[3]||results.value==2080 || results.value==32) {//color scheme up
+    if (results.value == irc[3]||results.value==2080 || results.value==32) {//color scheme up
       if(serialoutput==true){
         Serial.println("recognised 3 on ir");
       }
       colorschemeselector++;
     }
-    if (results.value == irc2[4]||results.value==2110 || results.value==62) {//re-init pattern
+    if (results.value == irc[4]||results.value==2110 || results.value==62) {//re-init pattern
       if(serialoutput==true){
         Serial.println("recognised 4 on ir");
       }
       fxVars[0][0]=0;
       fxVars[1][0]=0;
     }
-    if (results.value == irc2[5]||results.value==2061 || results.value==13) {//toggle brightness
+    if (results.value == irc[5]||results.value==2061 || results.value==13) {//toggle brightness
       if(serialoutput==true){
         Serial.println("recognised 5 on ir");//serial message here    
       }
@@ -6922,7 +6922,7 @@ void getir(){
       //   brightness = random(2,1)*2;
       Serial.println(brightness);
     }    
-    if (results.value == irc2[6]) {
+    if (results.value == irc[6]) {
       if(serialoutput==true){
         Serial.println("recognised 6 on ir");//serial message here    
 
@@ -6931,7 +6931,7 @@ void getir(){
       //set demo mode off
       demo =0;  
     }
-    if (results.value == irc2[7]) {
+    if (results.value == irc[7]) {
       if(serialoutput==true){
         Serial.println("recognised 7 on ir");  //serial message here    
       }
@@ -6943,7 +6943,7 @@ void getir(){
       transitionspeedvariance = 15;// # of frames transition lenght varies by, total var 2X, 1X in either + or -
 
     }
-    if (results.value == irc2[8]) {
+    if (results.value == irc[8]) {
       if(serialoutput==true){
         Serial.println("recognised 8 on ir");  //serial message here    
       }
@@ -6955,7 +6955,7 @@ void getir(){
       transitionspeedvariance = 15;// # of frames transition lenght varies by, total var 2X, 1X in either + or -
 
     }
-    if (results.value == irc2[9]) {
+    if (results.value == irc[9]) {
       if(serialoutput==true){
         Serial.println("recognised 9 on ir");   //serial message here    
       }
@@ -6966,7 +6966,7 @@ void getir(){
       transitionspeed = 120;// # of frames transition lasts 
       transitionspeedvariance = 15;// # of frames transition lenght varies by, total var 2X, 1X in either + or -
     }
-    if (results.value == irc2[10]) {
+    if (results.value == irc[10]) {
       if(serialoutput==true){
         Serial.println("recognised 10 on ir"); //serial message here    
       }
