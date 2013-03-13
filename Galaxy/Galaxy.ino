@@ -1,4 +1,3 @@
-
 #define galaxyversion 1.2 // version of this code.
 //flags
 boolean demo = true;
@@ -22,7 +21,7 @@ uint16_t transitionspeed = 30;// # of framestransition lasts
 uint8_t transitionspeedvariance = 0;// # of frames transition lenght varies by, total var 2X, 1X in either + or -
 
 void (*renderEffect[])(byte) = {
-  /*
+   /*
    * Fixed color patterns
    */
   sparklefade, 
@@ -34,7 +33,6 @@ void (*renderEffect[])(byte) = {
   rainbowsineChase,//needs to be stretched to fit entire color wheel
   longsinechasecolordrift,//needs to be stretched to fit hoop
   colorDriftsineChase,//ok
-  sineChase, //stock  
   wavyFlag,// stock
   simpleOrbit,//not sure whats going on here...
   sineCompass, //needs smoothing
@@ -42,16 +40,8 @@ void (*renderEffect[])(byte) = {
   /*
    * Color scheme responsive patterns
    */
-  HeartPOV,
-  MazePOV,
-  StarPOV,
-  WavyPOV,
-  MoonPOV,
-  CatPOV,
-  OooPOV,
-  ChainsPOV,
-  MiniTriPOV,
   schemetest,//non moving
+  schemetestlong,//non moving
   fourfade,
   petechase,
   Whacky,
@@ -71,8 +61,6 @@ void (*renderEffect[])(byte) = {
   mixColor8Chase,//almost sinechase but with my mixcolor8
   //is 4 byte * >> faster?
   who,//untested
-  rainbowChase, //stock
-  raindance,//smoothly picks a new speed every so often
   compassheading,//compass X,Y,Z mapped to one blip each
   compassheadingRGBFade,//fade RGB according to compass xyz
   Dice,//plane calculation 
@@ -82,8 +70,7 @@ void (*renderEffect[])(byte) = {
   // why,
   // how,
   //  schemestretch,//
-  schemetest,//non moving
-  schemetestlong,//non moving
+ 
   schemefade,//like color drift but for schemes
   MonsterHunter,
   pacman,   //mr pac man bounces back from end to end and builds 
@@ -147,23 +134,7 @@ void (*renderEffect[])(byte) = {
   Move,
   DiagCheckers,
 
-  //##########in development###########
-  // somekindaChase,
-  //blank,
-  // thingeyDrift,
-  //  rotate,//not sure whats going on here
-  //  rainStrobe2at1,
-  //strobefans2at1,
-  // schemetest2at1,
-  //  MonsterStrobe2at1,
-  //  schemetestlongrain2at1,
-  // schemetestrain2at1,    
-
-  // onespin,//not up to par
-  // onespinfade,//interesting but not what i was going for
-  //needs to store index and message string in progmem
-  // 
-
+  
 
 }
 ,
