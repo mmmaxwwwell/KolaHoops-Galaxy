@@ -15,7 +15,7 @@ int pattern = -1;
 int nextspeed=0;
 byte colorschemeselector = 0;
 uint8_t brightness = 3; //lower=brighter
-uint16_t patternswitchspeed = 1500; //# of frames between pattern switches
+uint16_t patternswitchspeed = 1000; //# of frames between pattern switches
 uint8_t patternswitchspeedvariance = 0;//# of frames the pattern switch speed can vary + and - so total variance could be 2x 
 uint16_t transitionspeed = 30;// # of framestransition lasts 
 uint8_t transitionspeedvariance = 0;// # of frames transition lenght varies by, total var 2X, 1X in either + or -
@@ -1450,7 +1450,7 @@ const char led_chars[97][6] PROGMEM = {
   0x00,0xfe,0x82,0x82,0x00,0x00,  // [0
   0x00,0x00,0x00,0x00,0x00,0x00, //1 *** do not remove this empty char ***
   0x00,0x82,0x82,0xfe,0x00,0x00,  // ]2
-  0x20,0x40,0x80,0x40,0x20,0x00,	// ^3
+  0x20,0x40,0x80,0x40,0x20,0x00,   // ^3
   0x02,0x02,0x02,0x02,0x02,0x00,	// _4
   0x00,0x80,0x40,0x20,0x00,0x00,	// `5
   0x04,0x2a,0x2a,0x2a,0x1e,0x00,	// a6
@@ -2347,13 +2347,13 @@ void menu() {
 void callback() {
   strip.show();
 
-  if(menuphase!=0){
+/*  if(menuphase!=0){
     menuphase=0;
     menuphase0=0;
     menuphase1=0;
     menuphase2=0;
   }
-  // Very first thing here is to issue the strip data generated from the
+*/// Very first thing here is to issue the strip data generated from the
   // *previous* callback. It's done this way on purpose because show() is
   // roughly constant-time, so the refresh will always occur on a uniform
   // beat with respect to the //Timer1 interrupt. The various effects
@@ -2441,6 +2441,9 @@ void callback() {
         fxIdx[frontImgIdx]++;//instead of random now its sequential
       }
     }
+    
+    fxIdx[frontImgIdx] = (demo)? random((sizeof(renderEffect) / sizeof(renderEffect[0]))):fxIdx[frontImgIdx];
+    colorschemeselector = (demo)? random(36): colorschemeselector;
     if(fxIdx[frontImgIdx]>=(sizeof(renderEffect) / sizeof(renderEffect[0]))){
       fxIdx[frontImgIdx]=0;
     }
@@ -6482,7 +6485,7 @@ void irsetup(boolean feedback) {
     }
   }
 
-  if (i == ircsetup-1){
+  if (i == ircsetup){
     int i2;
     for (i = 0; i < ircsetup; i ++){
       if(serialoutput==true){  
@@ -6584,43 +6587,51 @@ void getir(){
       irrecv.resume();
       return;
     }
-    if (results.value == irc2[0]||results.value==2065 || results.value== 17) {//pattern down
+    if (results.value == irc[0]||results.value==2065 || results.value== 17) {//pattern down
       if(serialoutput==true){
         Serial.println("recognised 0 on ir");
       }//pattern ++
       back=true;
       button=1;
       tCounter=0;
+      irrecv.resume();
+      return;
     }
-    if (results.value == irc2[1]||results.value==2064 || results.value==16) {//pattern up
+    if (results.value == irc[1]||results.value==2064 || results.value==16) {//pattern up
       if(serialoutput==true){
         Serial.println("recognised 1 on ir");
       } 
       button=1;
       tCounter=0;
       //colorschemeselector++;
+      irrecv.resume();
+      return;
     }  
-    if (results.value == irc2[2]||results.value==2081 || results.value==33) {//color scheme down
+    if (results.value == irc[2]||results.value==2081 || results.value==33) {//color scheme down
       if(serialoutput==true){
         Serial.println("recognised 2 on ir");
       }
       colorschemeselector--;
       //color scheme --
+      irrecv.resume();
+      return;
     }
-    if (results.value == irc2[3]||results.value==2080 || results.value==32) {//color scheme up
+    if (results.value == irc[3]||results.value==2080 || results.value==32) {//color scheme up
       if(serialoutput==true){
         Serial.println("recognised 3 on ir");
       }
       colorschemeselector++;
     }
-    if (results.value == irc2[4]||results.value==2110 || results.value==62) {//re-init pattern
+    if (results.value == irc[4]||results.value==2110 || results.value==62) {//re-init pattern
       if(serialoutput==true){
         Serial.println("recognised 4 on ir");
       }
       fxVars[0][0]=0;
       fxVars[1][0]=0;
+      irrecv.resume();
+      return;
     }
-    if (results.value == irc2[5]||results.value==2061 || results.value==13) {//toggle brightness
+    if (results.value == irc[5]||results.value==2061 || results.value==13) {//toggle brightness
       if(serialoutput==true){
         Serial.println("recognised 5 on ir");//serial message here    
       }
@@ -6636,10 +6647,13 @@ void getir(){
           brightness=2;
         }
       }
-
+      irrecv.resume();
+      return;
       //   brightness = random(2,1)*2;
-      Serial.println(brightness);
-    }    
+      //Serial.println(brightness);
+    } 
+ 
+ /*   
     if (results.value == irc2[6]) {
       if(serialoutput==true){
         Serial.println("recognised 6 on ir");//serial message here    
@@ -6692,6 +6706,8 @@ void getir(){
       //  tCounter=-1;
       //re init
     }
+    
+    */
     irrecv.resume();
   }
 }
