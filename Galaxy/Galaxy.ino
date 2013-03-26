@@ -39,11 +39,11 @@ void (*renderEffect[])(byte) = {
   wavyFlag,// stock
   simpleOrbit,//not sure whats going on here...
   sineCompass, //needs smoothing
-  POV,
+  POV,//13
   /*
    * Color scheme responsive patterns
    */
-  HeartPOV,
+  HeartPOV,//14
   MazePOV,
   StarPOV,
   WavyPOV,
@@ -55,7 +55,7 @@ void (*renderEffect[])(byte) = {
   schemetest,//non moving
   fourfade,
   petechase,
-  Whacky,
+  Whacky,//26
   //  halfrandom,
   //  quarterrandom,
   //  accelschemesparklefade,//increases in colors and brightness depending on how hard you shake it
@@ -71,19 +71,19 @@ void (*renderEffect[])(byte) = {
   schemetestlongfade,//needs to "dance"
   mixColor8Chase,//almost sinechase but with my mixcolor8
   //is 4 byte * >> faster?
-  who,//untested
+  who,//untested//33
   rainbowChase, //stock
   raindance,//smoothly picks a new speed every so often
   compassheading,//compass X,Y,Z mapped to one blip each
   compassheadingRGBFade,//fade RGB according to compass xyz
-  Dice,//plane calculation 
+  Dice,//plane calculation//38 
   // what,
   // when,
   // where,
   // why,
   // how,
   //  schemestretch,//
-  schemetest,//non moving
+  schemetest,//non moving//39
   schemetestlong,//non moving
   schemefade,//like color drift but for schemes
   MonsterHunter,
@@ -93,7 +93,7 @@ void (*renderEffect[])(byte) = {
   scrolls,//need to replace with older version
  //POV**************************
   Dance,//Good - Hard to see
-  SideSquare,
+  SideSquare,//48
   BigBricks,
   YUM,
   SparkleLights,
@@ -105,7 +105,7 @@ void (*renderEffect[])(byte) = {
   SpreadPOV,//*****************************
   TimePOV,
   SlagPOV,
-  AmericanFlagPOV,
+  AmericanFlagPOV,//60
   RingsPOV,
   ArrowPOV,//        These are
   MultiBoxPOV,//      New Patterns
@@ -115,7 +115,7 @@ void (*renderEffect[])(byte) = {
   TheBigDownSquarePOV,
   UpDownPOV,
   DoubleDimePOV,//**************************
-  FourWayCheckersPOV,
+  FourWayCheckersPOV,//70
   FourColorCheckersPOV,
   ZigZagPOV,
   CrazyCirclesPOV,
@@ -125,7 +125,7 @@ void (*renderEffect[])(byte) = {
   SmallCirclePOV,
   QuadHelixPOV,
   WavePOV,
-  HeartPOV,
+  HeartPOV,//80
   MazePOV,
   StarPOV,
   WavyPOV,
@@ -135,7 +135,7 @@ void (*renderEffect[])(byte) = {
   ChainsPOV,
   MiniTriPOV,
   FourSquare,
-  Checkerboard,
+  Checkerboard,//90
   FourSquare,
   Checkerboard,
   Slider,
@@ -144,9 +144,10 @@ void (*renderEffect[])(byte) = {
   Zag,
   NewCircle,
   DoubleHelix,
-  Bubbles,
+  Bubbles,//100
   Move,
-  DiagCheckers,
+  DiagCheckers,//102
+  SpeechPOV,//103
 
   //##########in development###########
   // somekindaChase,
@@ -238,7 +239,7 @@ void (*renderEffect[])(byte) = {
 // coding techniques may be a bit obtuse (e.g. function arrays), so novice
 // programmers may have an easier time starting out with the 'strandtest'
 // program also included with the LPD8806 library.
-
+String UserPovString = "KolaHoops.com";
 #include "LSM303.h"
 LSM303 compass;
 LSM303::vector running_min = {
@@ -255,8 +256,8 @@ IRrecv irrecv(irrxpin);
 decode_results results;
 #define ircsetup 6
 unsigned long irc[ircsetup];
-unsigned long irc2[ircsetup]= {
-  0,0,0,0,0,0};
+//unsigned long irc2[ircsetup]= {
+//  0,0,0,0,0,0};
 /*  2155864095,//sirius sat radio remote
  2155847775,
  2155815135,
@@ -4848,6 +4849,71 @@ void picPOV(byte idx, byte imageSelector) {
     fxVars[idx][5]=0;
   }
 }
+
+void SpeechPOV(byte idx) {
+ const String led_chars_index =" ! #$%&'()*+,-./0123456789:;>=<?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[ ]^_`abcdefghijklmnopqrstuvwxyz{|}~~";
+  if(fxVars[idx][0] == 0) {
+    int i;
+    fxVars[idx][1]=random(1536); //color were gonna use to cycle
+    fxVars[idx][2]=16; //either 8 or 16 (scale of 1 or 2 ), used to determine # of pixels in height; our character table is 8 x 6
+    fxVars[idx][3]=0;//frame counter operator. starts at 1 and is incremented every frame,
+    fxVars[idx][4]=0;//# of frames until next change
+    fxVars[idx][6]=6;//number of different levels or time. a level is incremented every x# of frames; character table is 8x6
+    fxVars[idx][5]=0;// level operator gets a ++ every loop and is set to -9 when @ 10 and abs() when called so it oscillates
+    fxVars[idx][7]=0;//using this to keep track of which section we're writing to, operator of fxVars[idx][2]. starts at 0
+    fxVars[idx][8] = fxVars[idx][2];// this is the number of times to cut up the 1536 increment wheel. 2=opposite colors, 3 == a triangle, 4= a square
+    //using fxVars[idx][2] here makes the whole stretch minus the remainder go once around the clolr wheel
+    fxVars[idx][9]=0;// character counter
+   // fxVars[idx][10]=random(0,sizeof(Message)/7);// determines message for the message array. 0 = KolaHoops.com, 1=make,2=hack,3=build
+    //  Serial.println(sizeof(Message)/7);
+    // fxVars[idx][11]= random(0,10); //if greater than 5,change the message after it finishes
+
+    fxVars[idx][0]=1;// Effect initialized
+  }
+  // if(fxVars[idx][0] == -1) { //re init
+  // }
+  fxVars[idx][3]++;
+  byte *ptr = &imgData[idx][0];
+  long color;
+  for(int i=0; i<numPixels/fxVars[idx][2]; i++) {
+    byte data=pgm_read_byte (&led_chars[led_chars_index.indexOf(UserPovString.charAt(fxVars[idx][9]))][fxVars[idx][5]]); //
+    for(int i=0; i<fxVars[idx][2]; i++) {
+      if((data>>(i/2))&1){
+        //led_chars_index.indexOf(Message.charAt(fxVars[idx][9]))
+        *ptr++ = 255;
+        *ptr++ = 0;
+        *ptr++ = 0;
+      }
+      else{
+        *ptr++ = 0;
+        *ptr++ = 0;
+        *ptr++ = 0;
+      }
+    }
+    fxVars[idx][7]++;
+  }
+  for(int i=0; i<numPixels%fxVars[idx][2]; i++) {//this is for the remainder
+    *ptr++ = 0;
+    *ptr++ = 0;
+    *ptr++ = 0;
+  }
+  // if(fxVars[idx][3]>=fxVars[idx][4]){
+  //   fxVars[idx][3]=0;
+  fxVars[idx][5]++;
+  //  }
+  if(fxVars[idx][5]>=fxVars[idx][6]) // if level operator > level holder then increment character and check for overflow
+  {
+    fxVars[idx][5]=0;
+    fxVars[idx][9]++;
+    if(fxVars[idx][9]>=UserPovString.length()){
+      fxVars[idx][9]=0;
+    }
+    //Serial.println(fxVars[idx][5]);
+    fxVars[idx][7]=0;
+  }
+}
+
+
 void POV(byte idx) {
   const String Message[4] = {
     "CREATE ",
@@ -6411,7 +6477,7 @@ void getSerial(){
       }
       Serial.println();
       for (int i =0; i<ircsetup; i++){
-        Serial.print (irc2[i]);
+        Serial.print (irc[i]);
         Serial.print(" , " );
         Serial.println (i);
       }
@@ -6518,7 +6584,7 @@ void getUart(){
         //     Serial.println(".");
       }
       for(i=0;i<8;i++){
-        num = atol(urt); // the rest is arguments (maybe)
+        num = atoi(urt); // the rest is arguments (maybe) //is this supposed to be atoi or atol?
         //      num=num>>8;
         usercolorscheme[i] = num;//what?
 
@@ -6613,6 +6679,13 @@ void getUart(){
         Uart.println("Demo mode disabled");
       }
     }
+    if( ucmd == 'o' ){
+      
+      UserPovString = num;//set our user's string
+      pattern = 103;//set next pattern in que
+      tCounter = 0;//start transition
+    }
+    
     //   if( ucmd == 'A' ) {//D means toggle demo mode
     //     compassoutput=!compassoutput;
     //     if(compassoutput==1){
@@ -6877,7 +6950,7 @@ void getir(){
       irrecv.resume();
       return;
     }
-    if (results.value == irc2[0]||results.value==2065 || results.value== 17) {//pattern down
+    if (results.value == irc[0]||results.value==2065 || results.value== 17) {//pattern down
       if(serialoutput==true){
         Serial.println("recognised 0 on ir");
       }//pattern ++
@@ -6885,7 +6958,7 @@ void getir(){
       button=1;
       tCounter=0;
     }
-    if (results.value == irc2[1]||results.value==2064 || results.value==16) {//pattern up
+    if (results.value == irc[1]||results.value==2064 || results.value==16) {//pattern up
       if(serialoutput==true){
         Serial.println("recognised 1 on ir");
       } 
@@ -6893,27 +6966,27 @@ void getir(){
       tCounter=0;
       //colorschemeselector++;
     }  
-    if (results.value == irc2[2]||results.value==2081 || results.value==33) {//color scheme down
+    if (results.value == irc[2]||results.value==2081 || results.value==33) {//color scheme down
       if(serialoutput==true){
         Serial.println("recognised 2 on ir");
       }
       colorschemeselector--;
       //color scheme --
     }
-    if (results.value == irc2[3]||results.value==2080 || results.value==32) {//color scheme up
+    if (results.value == irc[3]||results.value==2080 || results.value==32) {//color scheme up
       if(serialoutput==true){
         Serial.println("recognised 3 on ir");
       }
       colorschemeselector++;
     }
-    if (results.value == irc2[4]||results.value==2110 || results.value==62) {//re-init pattern
+    if (results.value == irc[4]||results.value==2110 || results.value==62) {//re-init pattern
       if(serialoutput==true){
         Serial.println("recognised 4 on ir");
       }
       fxVars[0][0]=0;
       fxVars[1][0]=0;
     }
-    if (results.value == irc2[5]||results.value==2061 || results.value==13) {//toggle brightness
+    if (results.value == irc[5]||results.value==2061 || results.value==13) {//toggle brightness
       if(serialoutput==true){
         Serial.println("recognised 5 on ir");//serial message here    
       }
@@ -6933,7 +7006,7 @@ void getir(){
       //   brightness = random(2,1)*2;
       Serial.println(brightness);
     }    
-    if (results.value == irc2[6]) {
+    if (results.value == irc[6]) {
       if(serialoutput==true){
         Serial.println("recognised 6 on ir");//serial message here    
 
@@ -6942,7 +7015,7 @@ void getir(){
       //set demo mode off
       demo =0;  
     }
-    if (results.value == irc2[7]) {
+    if (results.value == irc[7]) {
       if(serialoutput==true){
         Serial.println("recognised 7 on ir");  //serial message here    
       }
@@ -6954,7 +7027,7 @@ void getir(){
       transitionspeedvariance = 15;// # of frames transition lenght varies by, total var 2X, 1X in either + or -
 
     }
-    if (results.value == irc2[8]) {
+    if (results.value == irc[8]) {
       if(serialoutput==true){
         Serial.println("recognised 8 on ir");  //serial message here    
       }
@@ -6966,7 +7039,7 @@ void getir(){
       transitionspeedvariance = 15;// # of frames transition lenght varies by, total var 2X, 1X in either + or -
 
     }
-    if (results.value == irc2[9]) {
+    if (results.value == irc[9]) {
       if(serialoutput==true){
         Serial.println("recognised 9 on ir");   //serial message here    
       }
@@ -6977,7 +7050,7 @@ void getir(){
       transitionspeed = 120;// # of frames transition lasts 
       transitionspeedvariance = 15;// # of frames transition lenght varies by, total var 2X, 1X in either + or -
     }
-    if (results.value == irc2[10]) {
+    if (results.value == irc[10]) {
       if(serialoutput==true){
         Serial.println("recognised 10 on ir"); //serial message here    
       }
