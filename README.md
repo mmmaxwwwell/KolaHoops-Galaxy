@@ -8,6 +8,6 @@
 ###Pololu for the library that interfaces with the LSM303 - [Pololu.com](www.pololu.com)
 ###Arduino - [www.Arduino.cc](www.arduino.cc)
 ###The open source community - [Let me google that for you](http://bit.ly/UUwWnj)
-##Available soon at [www.kolahoops.com](http://www.kolahoops.com)
+##Available at [www.kolahoops.com](http://www.kolahoops.com)
 
 ##Check out our [bluetooth app](https://github.com/mmmaxwwwell/KolaHoops-Bluetooth) for android##
