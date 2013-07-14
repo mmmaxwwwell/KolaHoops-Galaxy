@@ -3,13 +3,8 @@
 //flags
 boolean demo = true;
 boolean colordemo=false;
-uint8_t compassdebug = 0;
-boolean acceloutput=false;
 int opmode=0; //0==normal ,1=menu,2=irsetup
-boolean planeoutput=false;
-boolean compassoutput=false;
 boolean irsetupflag=false;
-uint8_t calflag; //compass calibration flag. -1 = recalibrate compass;0=get raw calibration data;1=do nothing
 boolean serialoutput=true;// will the serial respond?
 boolean uartoutput=true;// will the uart respond?
 //paramaters
@@ -38,7 +33,6 @@ void (*renderEffect[])(byte) = {
   sineChase, //stock  
   wavyFlag,// stock
   simpleOrbit,//not sure whats going on here...
-  sineCompass, //needs smoothing
   POV,
   /*
    * Color scheme responsive patterns
@@ -56,33 +50,14 @@ void (*renderEffect[])(byte) = {
   fourfade,
   petechase,
   Whacky,
-  //  halfrandom,
-  //  quarterrandom,
-  //  accelschemesparklefade,//increases in colors and brightness depending on how hard you shake it
-  accelsparklefade,//increases in colors and brightness depending on how hard you shake it
-  // compassschemesparklefade,
-  //  eightfade,//eight going around leaving a train(broken)
-  // blankfade,
-  //  accel1,
   onefade,//one going around leaving a trail
-  //schemesparklefadelong,
   schemesparklefade,
   schemetestfade,//needs to "dance"
   schemetestlongfade,//needs to "dance"
-  mixColor8Chase,//almost sinechase but with my mixcolor8
-  //is 4 byte * >> faster?
+  mixColor8Chase,//almost sinechase but with my mixcolor8//is 4 byte * >> faster?
   who,//untested
   rainbowChase, //stock
   raindance,//smoothly picks a new speed every so often
-  compassheading,//compass X,Y,Z mapped to one blip each
-  compassheadingRGBFade,//fade RGB according to compass xyz
-  Dice,//plane calculation 
-  // what,
-  // when,
-  // where,
-  // why,
-  // how,
-  //  schemestretch,//
   schemetest,//non moving
   schemetestlong,//non moving
   schemefade,//like color drift but for schemes
@@ -147,25 +122,6 @@ void (*renderEffect[])(byte) = {
   Bubbles,
   Move,
   DiagCheckers,
-
-  //##########in development###########
-  // somekindaChase,
-  //blank,
-  // thingeyDrift,
-  //  rotate,//not sure whats going on here
-  //  rainStrobe2at1,
-  //strobefans2at1,
-  // schemetest2at1,
-  //  MonsterStrobe2at1,
-  //  schemetestlongrain2at1,
-  // schemetestrain2at1,    
-
-  // onespin,//not up to par
-  // onespinfade,//interesting but not what i was going for
-  //needs to store index and message string in progmem
-  // 
-
-
 }
 ,
 (*renderAlpha[])(void) = {
@@ -176,21 +132,6 @@ void (*renderEffect[])(byte) = {
 
 //########################################################################################################################
 /*
-/*
- Smoothing
- Reads repeatedly from an analog input, calculating a running average
- and printing it to the computer. Keeps ten readings in an array and
- continually averages them.
- The circuit:
- * Analog sensor (potentiometer will do) attached to analog input 0
- Created 22 April 2007
- By David A. Mellis <dam@mellis.org>
- modified 9 Apr 2012
- by Tom Igoe
- http://www.arduino.cc/en/Tutorial/Smoothing
- This example code is in the public domain.
- */
-
 /*
  * RGBConverter.h - Arduino library for converting between RGB, HSV and HSL
  * 
@@ -206,18 +147,6 @@ void (*renderEffect[])(byte) = {
 /*
 
  
- HMC5883L_Example.pde - Examhsvple sketch for integration with an HMC5883L triple axis magnetomerwe.
- Copyright (C) 2011 Love Electronics (loveelectronics.co.uk)
- This program is free software: you can redistribute it and/or modify
- it under the terms of the version 3 GNU General Public License as
- published by the Free Software Foundation.
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU General Public License for more details.
- You should have received a copy of the GNU General Public License
- along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
 
 /*****************************************************************************/
 // Example to control LPD8806-based RGB LED Modules in a strip
@@ -238,14 +167,6 @@ void (*renderEffect[])(byte) = {
 // coding techniques may be a bit obtuse (e.g. function arrays), so novice
 // programmers may have an easier time starting out with the 'strandtest'
 // program also included with the LPD8806 library.
-
-#include "LSM303.h"
-LSM303 compass;
-LSM303::vector running_min = {
-  2047, 2047, 2047}
-, running_max = {
-  -2048, -2048, -2048};
-
 
 
 //ir remote stuffs
@@ -281,7 +202,6 @@ unsigned long irc2[ircsetup]= {
  279904511,
  279961631}; //kenmore ac remote
  */
-//boolean irsetupflag = false;
 
 
 //##########eeprom stuffs
@@ -319,33 +239,8 @@ int tCounter = 0;
 //LPD8806 strip = LPD8806(numPixels);
 boolean back = false;
 int crazycounter;
-//#####################menu stuffs
-uint8_t menuphase = 0,menuphase0 = 0,menuphase1 = 0,menuphase2 = 0;
-//##############compass stuffs
-
-int lmheading;
-int plane,ax,ay,az,axlast,aylast,azlast;
-boolean compassreadphase = 0;
-uint16_t yzheadingdegrees,xzheadingdegrees,xyheadingdegrees,xyheadingdegreescalibrated,xyheadingdegreesmin,xyheadingdegreesmax,
-xzheadingdegreescalibrated,xzheadingdegreesmin,xzheadingdegreesmax,
-yzheadingdegreescalibrated,yzheadingdegreesmin,yzheadingdegreesmax,xyheadingdegreeslast,xzheadingdegreeslast,yzheadingdegreeslast;
-float xyheading, xzheading ,yzheading,xyheadinglast, xzheadinglast ,yzheadinglast, xytravel,xztravel,yztravel;
-
-
-
-//############### stuff for the averages for the accell
-const int numReadingsax = 6;
-const int numReadingsay = 6;
-const int numReadingsaz = 6;
-int readingsax[numReadingsax],readingsay[numReadingsay],readingsaz[numReadingsaz]; // the readings from the analog input
-int indexax,indexay,indexaz; // the index of the current reading
-int totalax,totalay,totalaz; // the running total
-int averageax,averageay,averageaz;
 //##############bluetooth serial port
 HardwareSerial Uart = HardwareSerial();
-
-//#############compass stuff
-uint8_t error = 0;
 
 //#############software debounce for the button and button
 unsigned long lastDebounceTime = 0; // the last time the output pin was toggled
@@ -1515,7 +1410,7 @@ const char led_chars[97][6] PROGMEM = {
   0x00,0x10,0x6c,0x82,0x00,0x00,	// {2
   0x00,0x00,0xfe,0x00,0x00,0x00,	// |3
   0x00,0x82,0x6c,0x10,0x00,0x00,//96
-  //  0x18,0x3c,0x7e,0xff,0x7e,0x3c,//97 we added this line and bellow
+
 
 
 }; //4
@@ -1584,7 +1479,7 @@ void bluetoothsetup(){
   //  Uart.print("AT+BAUD7"); //sets bluetooth uart baud at 57600
   //  Uart.print("AT+BAUD8"); //sets bluetooth uart baud at 115200
   delay(1000);//wait a sec
-  Uart.print("AT+NAMEMax's Galaxy"); //sets name seen in bt
+  Uart.print("AT+NAMEMax's Galaxy"); //sets name seen on phone
   delay(1000);
   Uart.print("AT+PIN1337");//sets pin, act like you know
   delay(1000); 
@@ -1795,25 +1690,7 @@ void setup() {
   pinMode(irrxpin, INPUT);
   pinMode(19, INPUT);
   EEPreadirc();
-  /*
- if(serialoutput==true){
-   Serial.println();
-   Serial.println("Send a");
-   Serial.println("+ to press button");
-   //Serial.println("B to increase brightness, ");
-   //Serial.println("b to decrease brightness, ");
-   Serial.println("D to enable compass debug,");
-   Serial.println("d to disable compass debug");
-   Serial.println("C to + color scheme");
-   Serial.println("c to - color scheme");
-   Serial.println("M to enter menu");
-   Serial.println("m to go back to run");
-   Serial.println("Starting the I2C interface.");
-   }
-   */
-  Wire.begin(); // Start the I2C interface.
-  compass.init();
-  compass.enableDefault();
+
   // Initialize random number generator from a floating analog input.
   randomSeed(analogRead(0));
   memset(imgData, 0, sizeof(imgData)); // Clear image data
@@ -1825,257 +1702,7 @@ void setup() {
   // Timer1.attachInterrupt(callback, 1000000 / 30); //30 times/second
 }
 
-void findplane(){
-  // MagnetometerScaled scaled = compass.ReadScaledAxis();
-  if(abs(compass.m.x)>abs(compass.m.y)&&abs(compass.m.x)>abs(compass.m.z)) //in plane 1
-  {
-    if(compass.m.x>0){
-      plane=1;
-    }
-    else{
-      plane=-1;
-    }
-  }
-  if(abs(compass.m.y)>abs(compass.m.x)&&abs(compass.m.y)>abs(compass.m.z)) //in plane 2
 
-  {
-    if(compass.m.y>0){
-      plane=2;
-    }
-    else{
-      plane=-2;
-    }
-  }
-
-  if(abs(compass.m.z)>abs(compass.m.y)&&abs(compass.m.z)>abs(compass.m.x)) //in plane 3
-
-  {
-    if(compass.m.z>0){
-      plane=3;
-    }
-    else{
-      plane=-3;
-    }
-
-  }
-  if(planeoutput==1){
-
-    Serial.println();
-    Serial.print("plane:");
-    Serial.println(plane);
-
-  }
-}
-void accelread(){
-  axlast=ax;//copy old values
-  aylast=ay;//to new slot
-  azlast=az;//before poll
-  ax= compass.a.x;//get new
-  ay= compass.a.y;//values
-  az= compass.a.z;
-  // fxVars[idx][4]+fxVars[idx][5]+fxVars[idx][6];//sum of all axises
-  // fxVars[idx][17]=fxVars[idx][14]+fxVars[idx][15]+fxVars[idx][16];//sum of all axises old
-  // fxVars[idx][8]=abs(fxVars[idx][7]-fxVars[idx][17]);
-
-  runningaverageax(abs(ax-axlast));//we are doing a running average 
-  runningaverageay(abs(ay-aylast));//on the difference between polls
-  runningaverageax(abs(ay-aylast));//to make the data more useable
-  if(acceloutput==true){
-    Serial.print("Acc:X");
-    Serial.print(averageax);
-    Serial.print(",Y");
-    Serial.print(averageay);
-    Serial.print(",Z");
-    Serial.println(averageaz);
-  }
-
-
-}
-void compassread()
-{ 
-  xyheadinglast = xyheading;
-  xzheadinglast = xzheading;
-  yzheadinglast = yzheading;
-  // Calculate heading when the magnetometer is level, then correct for signs of axis.
-  xyheading = atan2(compass.m.y, compass.m.x);
-  xzheading = atan2(compass.m.x, compass.m.z);
-  yzheading = atan2(compass.m.z, compass.m.y);
-  xytravel = atan2(xyheading,xyheadinglast);
-  xztravel = atan2(xzheading,xzheadinglast);
-  yztravel = atan2(yzheading,yzheadinglast);
-  // Once you have your heading, you must then add your 'Declination Angle', which is the 'Error' of the magnetic field in your locatio
-
-  // Find yours here: http://www.magnetic-declination.com/
-  // Mine is: 2Ã¯Â¿Â½ 37' W, which is 2.617 Degrees, or (which we need) 0.0456752665 radians, I will use 0.0457
-  // If you cannot find your Declination, comment out these two lines, your compass will be slightly off.
-  // float declinationAngle = 0.0457;
-  // heading += declinationAngle;
-
-  // Correct for when signs are reversed.
-  if(xyheading < 0)
-    xyheading += 2*PI;
-
-  // Check for wrap due to addition of declination.
-  if(xyheading > 2*PI)
-    xyheading -= 2*PI;
-
-  // Convert radians to degrees for readability.
-  xyheadingdegreeslast = xyheadingdegrees;
-  xyheadingdegrees = xyheading * 180/M_PI;
-  // runningaverage(xyheadingDegrees);
-
-
-  // Correct for when signs are reversed.
-  if(xzheading < 0)
-    xzheading += 2*PI;
-
-  // Check for wrap due to addition of declination.
-  if(xzheading > 2*PI)
-    xzheading -= 2*PI;
-
-  // Convert radians to degrees for readability.
-  xzheadingdegrees = xzheading * 180/M_PI;
-  // Correct for when signs are reversed.
-  if(yzheading < 0)
-    yzheading += 2*PI;
-
-  // Check for wrap due to addition of declination.
-  if(yzheading > 2*PI)
-    yzheading -= 2*PI;
-
-  // Convert radians to degrees for readability.
-  yzheadingdegreeslast = yzheadingdegrees;
-  yzheadingdegrees = yzheading * 180/M_PI;
-  // runningaverage(xyheadingDegrees);
-
-
-
-  //xydynamic calibration
-  if (xyheadingdegrees>xyheadingdegreesmax||xyheadingdegreesmax==0){
-
-    xyheadingdegreesmax=xyheadingdegrees;
-
-  }
-  else{
-    if(xyheadingdegrees<xyheadingdegreesmin||xyheadingdegreesmin==0){
-      xyheadingdegreesmin=xyheadingdegrees;
-    }
-  }
-  xyheadingdegreescalibrated = map(xyheadingdegrees,xyheadingdegreesmin,xyheadingdegreesmax,0,360);
-  //xzdynamic calibration
-  if (xzheadingdegrees>xzheadingdegreesmax||xzheadingdegreesmax==0){
-    xzheadingdegreesmax=xzheadingdegrees;
-  }
-  else{
-    if(xzheadingdegrees<xzheadingdegreesmin||xzheadingdegreesmin==0){
-
-      xzheadingdegreesmin=xzheadingdegrees;
-    }
-  }
-  xzheadingdegreescalibrated = map(xzheadingdegrees,xzheadingdegreesmin,xzheadingdegreesmax,0,360);
-  //yzdynamic calibration
-  if (yzheadingdegrees>yzheadingdegreesmax||yzheadingdegreesmax==0){
-    yzheadingdegreesmax=yzheadingdegrees;
-  }
-  else{
-    if(yzheadingdegrees<yzheadingdegreesmin||yzheadingdegreesmin==0){
-      yzheadingdegreesmin=yzheadingdegrees;
-    }
-  }
-  yzheadingdegreescalibrated = map(yzheadingdegrees,yzheadingdegreesmin,yzheadingdegreesmax,0,360);
-
-
-
-  if (compassoutput==1){
-
-    Uart.print("xy");
-    Uart.println(xyheadingdegrees);
-    Uart.print("xz");
-    Uart.println(xzheadingdegrees);
-    Uart.print("yz");
-    Uart.println(yzheadingdegrees);
-    //delay(250);
-
-  }
-
-
-
-  // Convert radians to degrees for readability.
-  // float yzheadingDegrees = yzheading * 180/M_PI;
-
-
-  // Output the data via the serial port.
-  // Output(raw, scaled, heading, headingDegrees);
-
-  // Normally we would delay the application by 66ms to allow the loop
-  // to run at 15Hz (default bandwidth for the HMC5883L).
-  // However since we have a long serial out (104ms at 9600) we will let
-  // it run at its natural speed.
-  // delay(66);
-  // Serial.print(xyheadingDegrees);
-  // Serial.print(" xyDegrees \t");
-  // Serial.print(xzheadingDegrees);
-  // Serial.print(" xzDegrees \t");
-  // Serial.print(yzheadingDegrees);
-  // Serial.println(" yzDegrees \t");
-  //figure out headingdelta
-  //void runningAverage(int newval)
-  /* if(count1==0){count1=1;}else{
-   if(xyheadingDegrees>xyheadingDegreeslast){//indicates cw rotation or rollover from 359-0 in ccw rotation
-   if(xyheadingDegreeslast>90||xyheadingDegreeslast<270){
-   runningaverage(xyheadingDegrees-xyheadingDegreeslast);
-   // xyheadingDegreesdelta=(xyheadingDegrees-xyheadingDegreeslast)+xyheadingDegreesdelta;
-   }//indicates cw rotation w/o rollover
-   else{
-   runningaverage(xyheadingDegreeslast+(360-xyheadingDegrees));
-   // xyheadingDegreesdelta=(xyheadingDegreeslast+(360-xyheadingDegrees))+xyheadingDegreesdelta;
-   } //indicates ccw rotation with rollover
-   }
-   if(xyheadingDegrees<xyheadingDegreeslast){ //indicates ccw rotation or rollover from 0-359 in cw rotation
-   if(xyheadingDegreeslast>90||xyheadingDegreeslast<270){
-   runningaverage((xyheadingDegreeslast-xyheadingDegrees));
-   // xyheadingDegreesdelta=(xyheadingDegreeslast-xyheadingDegrees)+xyheadingDegreesdelta;
-   }//indicates ccw rotation w/o rollover
-   else{
-   runningaverage(xyheadingDegrees+(xyheadingDegreeslast-360));
-   // xyheadingDegreesdelta=(xyheadingDegrees+(xyheadingDegreeslast-360))+xyheadingDegreesdelta;
-   */
-  //}; //indicates cw rotation with rollover
-  // }; }
-  /*
-if(xyheadingDegreesdelta>90){
-   xyheadingDegreesdelta=xyheadingDegreesdelta-90;
-   count=count+1;
-   xymillisdelta=xymillislast - millis();
-   xymillislast=millis();
-   Serial.println(xyheadingDegreesdelta );
-   };
-   */
-  //Serial.println(average);
-}
-
-//void Output(MagnetometerRaw raw, MagnetometerScaled scaled, float heading, float headingDegrees)
-//{
-// Serial.print("Raw:\t");
-// Serial.print(raw.XAxis);
-// Serial.print(" ");
-// Serial.print(raw.YAxis);
-// Serial.print(" ");
-// Serial.print(raw.ZAxis);
-// Serial.print(" \tScaled:\t");
-
-// Serial.print(compass.m.x);
-// Serial.print(" ");
-// Serial.print(compass.m.y);
-// Serial.print(" ");
-// Serial.print(compass.m.z);
-
-// Serial.print(" \tHeading:\t");
-/// Serial.print(heading);
-// Serial.print(" Radians \t");
-// Serial.print(headingDegrees);
-// Serial.println(" Degrees \t");
-//}
 int counter;
 void mode(){
   switch(opmode){
@@ -2084,7 +1711,7 @@ void mode(){
     break;
 
   case 1: //menu mode
-    menurender();
+  //  menurender();
     break;
 
   case 2://ir learn mode
@@ -2117,388 +1744,10 @@ void others(){
   //  getSerial();
   getUart();
   getSerial();
-  compass.read();
-  //  if (counter==255)calibrate(),counter=-255;
-  compassread(); 
-  accelread();
 }
 
-void calibrate(){
-  running_min.x = min(running_min.x, compass.m.x);
-  running_min.y = min(running_min.y, compass.m.y);
-  running_min.z = min(running_min.z, compass.m.z);
-
-  running_max.x = max(running_max.x, compass.m.x);
-  running_max.y = max(running_max.y, compass.m.y);
-  running_max.z = max(running_max.z, compass.m.z);
-
-  /* if(serialoutput==true&&compassdebug==true){  
-   Serial.print("M min ");
-   Serial.print("X: ");
-   Serial.print((int)running_min.x);
-   Serial.print(" Y: ");
-   Serial.print((int)running_min.y);
-   Serial.print(" Z: ");
-   Serial.print((int)running_min.z);
-   
-   Serial.print(" M max ");  
-   Serial.print("X: ");
-   Serial.print((int)running_max.x);
-   Serial.print(" Y: ");
-   Serial.print((int)running_max.y);
-   Serial.print(" Z: ");
-   Serial.println((int)running_max.z);
-   
-   }
-   */
-  //recalculate calibration
-
-  // Calibration values. Use the Calibrate example program to get the values for
-  // your compass.
-
-  compass.m_min.x = running_min.x; 
-  compass.m_min.y = running_min.y;
-  compass.m_min.z = running_min.z;
-  compass.m_max.x = running_max.x;
-  compass.m_max.y = running_max.y;
-  compass.m_max.z = running_max.z;
-
-
-}
-void menurender() {
-  strip.show();
-  byte *backPtr    = &imgData[backImgIdx][0],
-  r, g, b;
-  int  i;
-  for(i=0; i<numPixels; i++) {
-    r = gamma(*backPtr++);
-    g = gamma(*backPtr++);
-    b = gamma(*backPtr++);
-    strip.setPixelColor(i, r, g, b);
-  }
-  menu();
-}
-void menu() {
-  byte *ptr = &imgData[backImgIdx][0];
-  int type;//placeholder
-  long color[3]={
-    0,0,0      };
-  if(type==0){//type tells us what value we are polling the user for. this 
-    color[0] = red;//will choose colors and set the apropriate values
-    color[1] = green;
-    color[2] = blue;
-  }
-  if(type==1){//type tells us what value we are polling the user for. this 
-    color[0] = purple;
-    color[1] = yellow;
-    color[2] = teal;
-  }
-
-  switch(menuphase){
-  case 0:
-    if(button==1){
-      menuphase0=xyheadingdegreescalibrated/60;
-      menuphase++;
-      button=0;
-      return;
-    }
-    else{
-      for(int i=0; i<numPixels; i++) {
-
-        if(i<=xyheadingdegreescalibrated/60){
-          *ptr++ = color[0] >> 16;
-          *ptr++ = color[0] >> 8;
-          *ptr++ = color[0];
-        }
-        else{
-          // for(int i=0; i<numPixels; i++) {
-          *ptr++=0;
-          *ptr++=0;
-          *ptr++=0;
-        }
-      }
-    }
-    break;
-  case 1:
-    if(button==1){
-      menuphase1=xyheadingdegreescalibrated/60;
-      menuphase++;
-      button=0;
-      return;
-    }
-    else{
-      for(int i=0; i<numPixels; i++) {
-        if(i<=menuphase0){
-          *ptr++ = color[0] >> 16;
-          *ptr++ = color[0] >> 8;
-          *ptr++ = color[0];
-        }
-        else{
-          if(i>=menuphase0&&i<=menuphase0+(xyheadingdegreescalibrated/60)){
-            *ptr++ = color[1] >> 16;
-            *ptr++ = color[1] >> 8;
-            *ptr++ = color[1];
-          }
-          else{
-            *ptr++=0;
-            *ptr++=0;
-            *ptr++=0;
-          }
-        }
-      }
-    }
-    break;
-  case 2:
-    if(button==1){
-      menuphase2=xyheadingdegreescalibrated/60;
-      menuphase++;
-      button=0;
-      return;
-    }
-    else{
-      for(int i=0; i<numPixels; i++) {
-        if(i<=menuphase0){
-          *ptr++ = color[0] >> 16;
-          *ptr++ = color[0] >> 8;
-          *ptr++ = color[0];
-        }
-        else{
-          if(i>=menuphase0&&i<=menuphase0+menuphase1){
-            *ptr++ = color[1] >> 16;
-            *ptr++ = color[1] >> 8;
-            *ptr++ = color[1];
-          }
-          else{
-            if(i>=menuphase0+menuphase1&&i<=menuphase0+menuphase1+(xyheadingdegreescalibrated/60)){
-              *ptr++ = color[2] >> 16;
-              *ptr++ = color[2] >> 8;
-              *ptr++ = color[2];
-            }
-            else{
-              *ptr++=0;
-              *ptr++=0;
-              *ptr++=0;
-            }
-          }
-        }
-      }
-    }
-    break;
-  case 3: // if we are at 3 then the user just selected the last digit.
-    //  Timer1.detachInterrupt();
-    if(serialoutput==true){
-      Serial.println(menuphase0);
-      Serial.println(menuphase1);
-      Serial.println(menuphase2);
-    }
-    uint8_t selection;
-
-    if(menuphase1==-1&&menuphase2==-1){
-      //code to calculate menu selection if only 1st digit supplied
-      selection = menuphase0;
-    }
-    else{
-      if(menuphase2==-1){
-        //code to calculate menu selection if 2 digits supplied.
-        selection = (menuphase0*10)+ menuphase1;
-      }
-      else{
-        //code to calculate menu selection if all 3 digits caught here
-        selection = (menuphase0*100)+(menuphase1*10)+ menuphase2;
-      } 
-    }
-    if(serialoutput==true){
-      Serial.print("selection ");
-      Serial.println(selection);
-    }
-    if(type==0){//0 is pattern selection
-
-
-    }
-    //Timer1.attachInterrupt(callback, 1000000/framerate);//redirect interrupt to menu
-    menuphase=0;
-    break;
-
-    /*  case 3:
-     if(button==1){
-     menuphase3=xyheadingdegreescalibrated/60;
-     menuphase++;
-     button=0;
-     return;
-     }
-     else{
-     for(int i=0; i<numPixels; i++) {
-     if(i<=menuphase0){
-     long color=red;
-     *ptr++ = color >> 16;
-     *ptr++ = color >> 8;
-     *ptr++ = color;
-     }
-     else{
-     if(i>=menuphase0&&i<=menuphase0+menuphase1){
-     long color=magenta;
-     *ptr++ = color >> 16;
-     *ptr++ = color >> 8;
-     *ptr++ = color;
-     }
-     else{
-     if(i>=menuphase0+menuphase1&&i<=menuphase0+menuphase1+menuphase2){
-     long color=blue;
-     *ptr++ = color >> 16;
-     *ptr++ = color >> 8;
-     *ptr++ = color;
-     }
-     else{
-     if(i>=menuphase0+menuphase1+menuphase2&&i<=menuphase0+menuphase1+menuphase2+(xyheadingdegreescalibrated/60)){
-     //   if(i>=menuphase0+menuphase1&&i<=menuphase0+menuphase1+(xyheadingdegreescalibrated/60)){
-     long color=teal;
-     *ptr++ = color >> 16;
-     *ptr++ = color >> 8;
-     *ptr++ = color;
-     }
-     else{
-     *ptr++=0;
-     *ptr++=0;
-     *ptr++=0;
-     }
-     }
-     }
-     }
-     }  
-     }
-     break;
-     case 4:
-     if(button==1){
-     menuphase4=xyheadingdegreescalibrated/60;
-     menuphase++;
-     button=0;
-     return;
-     }
-     else{
-     for(int i=0; i<numPixels; i++) {
-     if(i<=menuphase0){
-     long color=red;
-     *ptr++ = color >> 16;
-     *ptr++ = color >> 8;
-     *ptr++ = color;
-     }
-     else{
-     if(i>=menuphase0&&i<=menuphase0+menuphase1){
-     long color=magenta;
-     *ptr++ = color >> 16;
-     *ptr++ = color >> 8;
-     *ptr++ = color;
-     }
-     else{
-     if(i>=menuphase0+menuphase1&&i<=menuphase0+menuphase1+menuphase2){
-     long color=blue;
-     *ptr++ = color >> 16;
-     *ptr++ = color >> 8;
-     *ptr++ = color;
-     }
-     else{
-     if(i>=menuphase0+menuphase1+menuphase2&&i<=menuphase0+menuphase1+menuphase2+menuphase3){
-     long color=teal;
-     *ptr++ = color >> 16;
-     *ptr++ = color >> 8;
-     *ptr++ = color;
-     }
-     else{
-     if(i>=menuphase0+menuphase1+menuphase2+menuphase3&&i<=menuphase0+menuphase1+menuphase2+menuphase3+(xyheadingdegreescalibrated/60)){
-     long color=green;
-     *ptr++ = color >> 16;
-     *ptr++ = color >> 8;
-     *ptr++ = color;
-     }
-     else{
-     *ptr++=0;
-     *ptr++=0;
-     *ptr++=0;
-     }
-     }
-     }
-     }
-     }
-     }  
-     }
-     break;
-     case 5:
-     if(button==1){
-     menuphase5=xyheadingdegreescalibrated/60;
-     menuphase++;
-     button=0;
-     return;
-     }
-     else{
-     for(int i=0; i<numPixels; i++) {
-     if(i<=menuphase0){
-     long color=red;
-     *ptr++ = color >> 16;
-     *ptr++ = color >> 8;
-     *ptr++ = color;
-     }
-     else{
-     if(i>=menuphase0&&i<=menuphase0+menuphase1){
-     long color=magenta;
-     *ptr++ = color >> 16;
-     *ptr++ = color >> 8;
-     *ptr++ = color;
-     }
-     else{
-     if(i>=menuphase0+menuphase1&&i<=menuphase0+menuphase1+menuphase2){
-     long color=blue;
-     *ptr++ = color >> 16;
-     *ptr++ = color >> 8;
-     *ptr++ = color;
-     }
-     else{
-     if(i>=menuphase0+menuphase1+menuphase2&&i<=menuphase0+menuphase1+menuphase2+menuphase3){
-     long color=teal;
-     *ptr++ = color >> 16;
-     *ptr++ = color >> 8;
-     *ptr++ = color;
-     }
-     else{
-     if(i>=menuphase0+menuphase1+menuphase2+menuphase3&&i<=menuphase0+menuphase1+menuphase2+menuphase3+menuphase4){
-     //if(i>=menuphase0+menuphase1+menuphase2+menuphase3&&i<=menuphase0+menuphase1+menuphase2+menuphase3+(xyheadingdegreescalibrated/60)){
-     long color=green;
-     *ptr++ = color >> 16;
-     *ptr++ = color >> 8;
-     *ptr++ = color;
-     }
-     else{
-     if(i>=menuphase0+menuphase1+menuphase2+menuphase3+menuphase4&&i<=menuphase0+menuphase1+menuphase2+menuphase3+menuphase4+(xyheadingdegreescalibrated/60))
-     {  
-     long color=orange;
-     *ptr++ = color >> 16;
-     *ptr++ = color >> 8;
-     *ptr++ = color;
-     }
-     else{
-     *ptr++=0;
-     *ptr++=0;
-     *ptr++=0;
-     }
-     }
-     }
-     }
-     }
-     }
-     }  
-     }
-     break;
-     */
-  }
-}// //Timer1 interrupt handler. Called at equal intervals; 60 Hz by default.
 void callback() {
   strip.show();
-
-  if(menuphase!=0){
-    menuphase=0;
-    menuphase0=0;
-    menuphase1=0;
-    menuphase2=0;
-  }
   // Very first thing here is to issue the strip data generated from the
   // *previous* callback. It's done this way on purpose because show() is
   // roughly constant-time, so the refresh will always occur on a uniform
@@ -3098,198 +2347,6 @@ void schemesparklefade(byte idx) {
   }
 }
 
-void schemesparklefadelong(byte idx) {
-}
-
-
-void accelschemesparklefade(byte idx) {
-
-  if(fxVars[idx][0] == 0) {
-    fxVars[idx][1]=0;//position
-    fxVars[idx][2]=1;//frame skip holder
-    fxVars[idx][3]=fxVars[idx][2];//frame skip operator
-    fxVars[idx][4]=4;//top number
-    fxVars[idx][5]=5; //bottom number
-    fxVars[idx][0]=1;// init
-    //read accell
-    // colorschemeselector = 34;
-  }
-
-  //  Serial.println((averageax+averageay+averageaz)/150);
-  long color;
-  //color = getschemacolor(0); //first color in color scheme
-  byte *ptr = &imgData[idx][0], *tptr = &tempimgData[0], *ptr2 = &imgData[idx][0], *tptr2 = &tempimgData[0];
-  for(int i=0; i<numPixels; i++) {//write to temp strip so we can remember our data!
-    if(i== fxVars[idx][1]){
-      color = getschemacolor(0);
-      *tptr++ = color >> 16;
-      *tptr++ = color >> 8;
-      *tptr++ = color;
-      *ptr2++ = color >>16;
-      *ptr2++ = color >> 8;
-      *ptr2++ = color;
-    }
-    else{
-
-      if(random(averageax+averageay+averageaz)/150>9){
-        color = getschemacolor(0);
-        *tptr++ = color >> 16;
-        *tptr++ = color >> 8;
-        *tptr++ = color;
-        *ptr2++ = color >>16;
-        *ptr2++ = color >> 8;
-        *ptr2++ = color;
-      }
-      else{
-        if(random(averageax+averageay+averageaz)/150>7){
-          color = getschemacolor(1);
-          *tptr++ = (color >> 16)>>1;
-          *tptr++ = (color >> 8)>>1;
-          *tptr++ = (color)>>1;
-          *ptr2++ = (color >>16)>>1;
-          *ptr2++ = (color >> 8)>>1;
-          *ptr2++ = (color)>>1;
-        }
-        else{
-          if(random(averageax+averageay+averageaz)/150>1){
-            color = getschemacolor(2);
-            *tptr++ = (color >> 16)>>2;
-            *tptr++ = (color >> 8)>>2;
-            *tptr++ = (color)>>2;
-            *ptr2++ = (color >>16)>>2;
-            *ptr2++ = (color >> 8)>>2;
-            *ptr2++ = (color)>>2;
-          }
-          else{
-
-            *tptr++ = (*ptr2++ * fxVars[idx][4]/fxVars[idx][5]);
-            *tptr++ = (*ptr2++ * fxVars[idx][4]/fxVars[idx][5]);
-            *tptr++ = (*ptr2++ * fxVars[idx][4]/fxVars[idx][5]);
-          }
-        }
-      }
-    }
-  }
-  for(int i=0; i<numPixels; i++) {//copy temp strip to regular strip for write at end of callback
-    *ptr++ = *tptr2++;
-    *ptr++ = *tptr2++;
-    *ptr++ = *tptr2++;
-  }
-  fxVars[idx][3]--;
-  if(fxVars[idx][3]<=0){
-    fxVars[idx][1]++;
-    if(fxVars[idx][1]>numPixels){
-      fxVars[idx][1]=0; 
-    }
-    fxVars[idx][3]=fxVars[idx][2];
-  }
-}
-
-void compassschemesparklefade(byte idx) {
-
-  if(fxVars[idx][0] == 0) {
-    fxVars[idx][1]=0;//position
-    fxVars[idx][2]=1;//frame skip holder
-    fxVars[idx][3]=fxVars[idx][2];//frame skip operator
-    fxVars[idx][4]=17;//top number
-    fxVars[idx][5]=18; //bottom number
-    fxVars[idx][0]=1;// init
-    //read accell
-
-  }
-
-  //  Serial.println((averageax+averageay+averageaz)/150);
-  long color;
-  //color = getschemacolor(0); //first color in color scheme
-  byte *ptr = &imgData[idx][0], *tptr = &tempimgData[0], *ptr2 = &imgData[idx][0], *tptr2 = &tempimgData[0];
-  for(int i=0; i<numPixels; i++) {//write to temp strip so we can remember our data!
-    if(random(averageax+averageay+averageaz)/150>12){
-      color = getschemacolor(0);
-      *tptr++ = color >> 16;
-      *tptr++ = color >> 8;
-      *tptr++ = color;
-      *ptr2++ = color >>16;
-      *ptr2++ = color >> 8;
-      *ptr2++ = color;
-    }
-    else{
-      if(random(averageax+averageay+averageaz)/150>9){
-        color = getschemacolor(1);
-        *tptr++ = (color >> 16)>>1;
-        *tptr++ = (color >> 8)>>1;
-        *tptr++ = (color)>>1;
-        *ptr2++ = (color >>16)>>1;
-        *ptr2++ = (color >> 8)>>1;
-        *ptr2++ = (color)>>1;
-      }
-      else{
-        if(random(averageax+averageay+averageaz)/150>6){
-          color = getschemacolor(2);
-          *tptr++ = (color >> 16)>>2;
-          *tptr++ = (color >> 8)>>2;
-          *tptr++ = (color)>>2;
-          *ptr2++ = (color >>16)>>2;
-          *ptr2++ = (color >> 8)>>2;
-          *ptr2++ = (color)>>2;
-        }
-        else{
-          if(random(averageax+averageay+averageaz)/150>4){
-            color = getschemacolor(3);
-            *tptr++ = (color >> 16)>>3;
-            *tptr++ = (color >> 8)>>3;
-            *tptr++ = (color)>>3;
-            *ptr2++ = (color >>16)>>3;
-            *ptr2++ = (color >> 8)>>3;
-            *ptr2++ = (color)>>3;
-          }
-          else{
-            if(random(averageax+averageay+averageaz)/150>2||random(1000)==50){
-              color = getschemacolor(4);
-              *tptr++ = (color >> 16)>>4;
-              *tptr++ = (color >> 8)>>4;
-              *tptr++ = (color)>>4;
-              *ptr2++ = (color >>16)>>4;
-              *ptr2++ = (color >> 8)>>4;
-              *ptr2++ = (color)>>4;
-            }
-            else{
-              if(random(averageax+averageay+averageaz)/150>0){
-                color = getschemacolor(5);
-                *tptr++ = (color >> 16)>>5;
-                *tptr++ = (color >> 8)>>5;
-                *tptr++ = (color)>>5;
-                *ptr2++ = (color >>16)>>5;
-                *ptr2++ = (color >> 8)>>5;
-                *ptr2++ = (color)>>5;
-              }
-              else{
-                *tptr++ = (*ptr2++)*fxVars[idx][4]/fxVars[idx][5];
-                *tptr++ = (*ptr2++)*fxVars[idx][4]/fxVars[idx][5];
-                *tptr++ = (*ptr2++)*fxVars[idx][4]/fxVars[idx][5];
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  for(int i=0; i<numPixels; i++) {//copy temp strip to regular strip for write at end of callback
-    *ptr++ = *tptr2++;
-    *ptr++ = *tptr2++;
-    *ptr++ = *tptr2++;
-  }
-  fxVars[idx][3]--;
-  if(fxVars[idx][3]<=0){
-    fxVars[idx][1]++;
-    if(fxVars[idx][1]>numPixels){
-      fxVars[idx][1]=0; 
-    }
-    fxVars[idx][3]=fxVars[idx][2];
-  }
-}
-
-
-
 
 void onefade(byte idx) {
 
@@ -3448,111 +2505,6 @@ void eightfade(byte idx) {
     if(fxVars[idx][5]<=0){
       fxVars[idx][5]=numPixels; 
     }
-    if(fxVars[idx][1]>numPixels){
-      fxVars[idx][1]=0; 
-    }
-    fxVars[idx][3]=fxVars[idx][2];
-  }
-}
-
-
-void accelsparklefade(byte idx) {
-
-  if(fxVars[idx][0] == 0) {
-    fxVars[idx][1]=0;//position
-    fxVars[idx][2]=1;//frame skip holder
-    fxVars[idx][3]=fxVars[idx][2];//frame skip operator
-    fxVars[idx][4]=17;//top number
-    fxVars[idx][5]=18; //bottom number
-    fxVars[idx][0]=1;// init
-    //read accell
-
-  }
-
-  //  Serial.println((averageax+averageay+averageaz)/150);
-  long color;
-  int accelsum = averageax+averageay+averageaz;
-  //color = getschemacolor(0); //first color in color scheme
-  byte *ptr = &imgData[idx][0], *tptr = &tempimgData[0], *ptr2 = &imgData[idx][0], *tptr2 = &tempimgData[0];
-  for(int i=0; i<numPixels; i++) {//write to temp strip so we can remember our data!
-    if(random(accelsum)/150>12){
-      color = getschemacolor(0);
-      *tptr++ = color >> 16;
-      *tptr++ = color >> 8;
-      *tptr++ = color;
-      *ptr2++ = color >>16;
-      *ptr2++ = color >> 8;
-      *ptr2++ = color;
-    }
-    else{
-      if(random(accelsum)/150>9){
-        color = getschemacolor(1);
-        *tptr++ = (color >> 16)>>1;
-        *tptr++ = (color >> 8)>>1;
-        *tptr++ = (color)>>1;
-        *ptr2++ = (color >>16)>>1;
-        *ptr2++ = (color >> 8)>>1;
-        *ptr2++ = (color)>>1;
-      }
-      else{
-        if(random(accelsum)/150>6){
-          color = getschemacolor(2);
-          *tptr++ = (color >> 16)>>2;
-          *tptr++ = (color >> 8)>>2;
-          *tptr++ = (color)>>2;
-          *ptr2++ = (color >>16)>>2;
-          *ptr2++ = (color >> 8)>>2;
-          *ptr2++ = (color)>>2;
-        }
-        else{
-          if(random(accelsum)/150>4){
-            color = getschemacolor(3);
-            *tptr++ = (color >> 16)>>3;
-            *tptr++ = (color >> 8)>>3;
-            *tptr++ = (color)>>3;
-            *ptr2++ = (color >>16)>>3;
-            *ptr2++ = (color >> 8)>>3;
-            *ptr2++ = (color)>>3;
-          }
-          else{
-            if(random(accelsum)/150>2||random(1000)==50){
-              color = getschemacolor(4);
-              *tptr++ = (color >> 16)>>4;
-              *tptr++ = (color >> 8)>>4;
-              *tptr++ = (color)>>4;
-              *ptr2++ = (color >>16)>>4;
-              *ptr2++ = (color >> 8)>>4;
-              *ptr2++ = (color)>>4;
-            }
-            else{
-              if(random(accelsum)/150>0){
-                color = getschemacolor(5);
-                *tptr++ = (color >> 16)>>5;
-                *tptr++ = (color >> 8)>>5;
-                *tptr++ = (color)>>5;
-                *ptr2++ = (color >>16)>>5;
-                *ptr2++ = (color >> 8)>>5;
-                *ptr2++ = (color)>>5;
-              }
-              else{
-                *tptr++ = (*ptr2++)*fxVars[idx][4]/fxVars[idx][5];
-                *tptr++ = (*ptr2++)*fxVars[idx][4]/fxVars[idx][5];
-                *tptr++ = (*ptr2++)*fxVars[idx][4]/fxVars[idx][5];
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  for(int i=0; i<numPixels; i++) {//copy temp strip to regular strip for write at end of callback
-    *ptr++ = *tptr2++;
-    *ptr++ = *tptr2++;
-    *ptr++ = *tptr2++;
-  }
-  fxVars[idx][3]--;
-  if(fxVars[idx][3]<=0){
-    fxVars[idx][1]++;
     if(fxVars[idx][1]>numPixels){
       fxVars[idx][1]=0; 
     }
@@ -3719,48 +2671,7 @@ void blank(byte idx) {
 }
 
 
-void compassheading(byte idx) {
-  if(fxVars[idx][0] == 0) {
-    fxVars[idx][1]=0;//
-    fxVars[idx][2]=0;//
-    fxVars[idx][3]=0;//
-    fxVars[idx][4]=0;//
-    fxVars[idx][5]=0;//
-    fxVars[idx][6]=0;//
-    fxVars[idx][7]=0;//
-    fxVars[idx][8]=0;//
-    fxVars[idx][9]=0;//
-    fxVars[idx][10]=0;//
-    fxVars[idx][0]=1;// init
-  }
-  fxVars[idx][1] =map(xyheadingdegrees,0,360,0,numPixels);
-  fxVars[idx][2] =map(xzheadingdegrees,0,360,0,numPixels);
-  fxVars[idx][3] =map(yzheadingdegrees,0,360,0,numPixels);
-  byte *ptr = &imgData[idx][0];
-  for(int i=0; i<numPixels; i++) {
-    long color;
-    // color = getschemacolor(i%8); 
-    if (i==fxVars[idx][1]){
-      color=getschemacolor(0);
-    }
-    else{
-      if (i==fxVars[idx][2]){
-        color=getschemacolor(1);
-      }
-      else{
-        if (i==fxVars[idx][3]){
-          color=getschemacolor(2);
-        }
-        else{
-          color=black;
-        }
-      }
-    }
-    *ptr++ = color >> 16;
-    *ptr++ = color >> 8;
-    *ptr++ = color;
-  }
-}
+
 
 void rotate(byte idx) {
   if(fxVars[idx][0] == 0) {
@@ -3794,23 +2705,7 @@ void rotate(byte idx) {
 }
 
 
-void compassheadingRGBFade(byte idx) {
-  if(fxVars[idx][0] == 0) {
-    fxVars[idx][1]=0;//
-    fxVars[idx][2]=0;//
-    fxVars[idx][3]=0;//
-    fxVars[idx][0]=1;// init
-  }
-  fxVars[idx][1] =map(xyheadingdegrees,0,360,0,255);
-  fxVars[idx][2] =map(xzheadingdegrees,0,360,0,255);
-  fxVars[idx][3] =map(yzheadingdegrees,0,360,0,255);
-  byte *ptr = &imgData[idx][0];
-  for(int i=0; i<numPixels; i++) { 
-    *ptr++ = fxVars[idx][1];
-    *ptr++ = fxVars[idx][2];
-    *ptr++ = fxVars[idx][3];
-  }
-}
+
 
 void petechase(byte idx) {
   if(fxVars[idx][0] == 0) { // Initialize effect?
@@ -4496,53 +3391,6 @@ void scrolls(byte idx) {
 }
 
 
-
-
-void Dice(byte idx){
-  findplane();
-  if(fxVars[idx][0] == 0) {
-    fxVars[idx][1]=0;
-    fxVars[idx][2]=1;
-    fxVars[idx][3]=2;
-    fxVars[idx][4]=3;
-    fxVars[idx][5]=4;
-    fxVars[idx][6]=5;
-    fxVars[idx][7]=0;
-    fxVars[idx][0]=1; //effect init
-  }
-  if(plane>0){
-    fxVars[idx][7]=plane;
-  }
-  else{
-    fxVars[idx][7]=abs(plane)*2;
-  }
-  byte *ptr = &imgData[idx][0];
-  for(int i=0; i<numPixels; i++) {
-    long color;
-    // color = hsv2rgb(fxVars[idx][fxVars[idx][7]],255, 255);
-    color = getschemacolor(fxVars[idx][7]);
-    *ptr++ = color >> 16;
-    *ptr++ = color >> 8;
-    *ptr++ = color;
-  }
-}
-
-
-
-
-//*******************************************************************
-
-//*******************************************************************
-
-//*******************************************************************
-
-//*******************************************************************
-
-//*******************************************************************
-
-//*******************************************************************
-
-//*******************************************************************
 void colorflag(byte idx){
   colorPOV(idx, 0); 
 }
@@ -5801,50 +4649,6 @@ void schemestretch(byte idx) {
 }
 
 
-
-
-
-
-
-
-void sineCompass(byte idx) {
-  // Only needs to be rendered once, when effect is initialized:
-  if(fxVars[idx][0] == 0) {
-    // Serial.println("effect=04");
-    // fxVars[idx][1] = random(1536); // Random hue
-    fxVars[idx][1] = 1; // Random hue
-    // Number of repetitions (complete loops around color wheel);
-    // any more than 4 per meter just looks too chaotic.
-    // Store as distance around complete belt in half-degree units:
-    // fxVars[idx][2] = (1 + random(4 * ((numPixels + 31) / 32))) * 720; //original
-    fxVars[idx][2] = 720; 
-    // Frame-to-frame increment (speed) -- may be positive or negative,
-    // but magnitude shouldn't be so small as to be boring. It's generally
-    // still less than a full pixel per frame, making motion very smooth.
-    //fxVars[idx][3] = 4 + random(fxVars[idx][1]) / numPixels; //original
-    fxVars[idx][3] = 0; //no rotation
-    // Reverse direction half the time.
-    if(random(2) == 0) fxVars[idx][3] = -fxVars[idx][3];
-    fxVars[idx][4] = 0; // Current position
-    fxVars[idx][0] = 1; // Effect initialized
-  }
-  //fxVars[idx][4] = map(compass.m.x,0,360,0,720); // Current position
-  byte *ptr = &imgData[idx][0];
-  int foo;
-  long color, i;
-  for(long i=0; i<numPixels; i++) {
-    foo = fixSin((compass.m.x*2) + fxVars[idx][2] * i / numPixels);
-    color = (foo >= 0) ? //black?
-    hsv2rgb(fxVars[idx][1], 254 - (foo * 2), 255) : //white!
-    hsv2rgb(fxVars[idx][1], 255, 254 + foo * 2); //color
-    *ptr++ = color >> 16;
-    *ptr++ = color >> 8;
-    *ptr++ = color;
-  }
-  // fxVars[idx][4] += fxVars[idx][3];
-}
-
-
 void MonsterHunter(byte idx) {
   if(fxVars[idx][0] == 0) {
     fxVars[idx][1]=random(1536);
@@ -6281,73 +5085,6 @@ void buttonpress(){
   }
 }
 
-void runningaverageax(int newval) {
-  if(newval==0){
-    return;
-  }
-  // subtract the last reading:
-  totalax= totalax - readingsax[indexax];
-  // read from the sensor:
-  readingsax[indexax] = newval;
-  // add the reading to the total:
-  totalax= totalax + readingsax[indexax];
-  // advance to the next position in the array:
-  indexax = indexax + 1;
-  // if we're at the end of the array...
-  if (indexax >= numReadingsax)
-    // ...wrap around to the beginning:
-    indexax = 0;
-  // calculate the average:
-  averageax = totalax / numReadingsax;
-  // send it to the computer as ASCII digits
-  // Serial.println(average);
-  // delay(1); // delay in between reads for stability
-}
-void runningaverageay(int newval) {
-  if(newval==0){
-    return;
-  }
-  // subtract the last reading:
-  totalay= totalay - readingsay[indexay];
-  // read from the sensor:
-  readingsay[indexay] = newval;
-  // add the reading to the total:
-  totalay= totalay + readingsay[indexay];
-  // advance to the next position in the array:
-  indexay = indexay + 1;
-  // if we're at the end of the array...
-  if (indexay >= numReadingsay)
-    // ...wrap around to the beginning:
-    indexay = 0;
-  // calculate the average:
-  averageay = totalay / numReadingsay;
-  // send it to the computer as ASCII digits
-  // Serial.println(average);
-  // delay(1); // delay in between reads for stability
-}
-void runningaverageaz(int newval) {
-  if(newval==0){
-    return;
-  }
-  // subtract the last reading:
-  totalaz= totalaz - readingsaz[indexaz];
-  // read from the sensor:
-  readingsaz[indexaz] = newval;
-  // add the reading to the total:
-  totalaz= totalaz + readingsaz[indexaz];
-  // advance to the next position in the array:
-  indexaz = indexaz + 1;
-  // if we're at the end of the array...
-  if (indexaz >= numReadingsaz)
-    // ...wrap around to the beginning:
-    indexaz = 0;
-  // calculate the average:
-  averageaz = totalaz / numReadingsaz;
-  // send it to the computer as ASCII digits
-  // Serial.println(average);
-  // delay(1); // delay in between reads for stability
-}
-
 void getSerial(){
   unsigned long num;
   int i;
@@ -6389,18 +5126,12 @@ void getSerial(){
       }
       button=1;
     }
-    if( cmd == 'd' ) {
-      compassoutput=0;
-      if(serialoutput==true){  
-        Serial.println("disable compass serial output");
-      }
-    }
-    if( cmd == 'D' ) {
-      compassoutput=1;
-      if(serialoutput==true){
-        Serial.println("enable compass serial output");
-      }
-    }
+//    if( cmd == 'd' ) {
+
+//    }
+//    if( cmd == 'D' ) {
+    
+//    }
     if( cmd == 'Q' ) {
 
       for (int i =0; i<ircsetup; i++){
@@ -6479,18 +5210,12 @@ void getSerial(){
     if( cmd == 'z' ) { //send bluetooth config command
       brutebluetooth();
     }
-    if( cmd == 'A' ) { //Enable accel output
-      if(serialoutput==true){  
-        Serial.println("Enable accel output");
-      }
-      acceloutput=true;
-    }
-    if( cmd == 'a' ) { //disable accel output
-      if(serialoutput==true){  
-        Serial.println("Disable accel output");
-      }
-      acceloutput=false;
-    }
+  //  if( cmd == 'A' ) { //Enable accel output
+ 
+//    }
+//    if( cmd == 'a' ) { //disable accel output
+   
+//    }
 
     serInStr[0] = 0; // say we've used the string
   }
