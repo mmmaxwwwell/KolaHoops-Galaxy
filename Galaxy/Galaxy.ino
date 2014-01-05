@@ -1,12 +1,16 @@
 
-#define galaxyversion 1.1 // version of this code. will be used for bluetooth handshake to determine capabilities
+#define galaxyversion 1.2 // version of this code.
 //flags
 boolean demo = true;
 boolean colordemo=false;
+uint8_t compassdebug = 0;
+boolean acceloutput=false;
 int opmode=0; //0==normal ,1=menu,2=irsetup
+boolean planeoutput=false;
+boolean compassoutput=false;
 boolean irsetupflag=false;
+uint8_t calflag; //compass calibration flag. -1 = recalibrate compass;0=get raw calibration data;1=do nothing
 boolean serialoutput=true;// will the serial respond?
-boolean uartoutput=true;// will the uart respond?
 //paramaters
 int pattern = -1;
 int nextspeed=0;
@@ -22,6 +26,21 @@ uint8_t transitionspeedvariance = 0;// # of frames transition lenght varies by, 
 //########################################################################################################################
 /*
 /*
+ Smoothing
+ Reads repeatedly from an analog input, calculating a running average
+ and printing it to the computer. Keeps ten readings in an array and
+ continually averages them.
+ The circuit:
+ * Analog sensor (potentiometer will do) attached to analog input 0
+ Created 22 April 2007
+ By David A. Mellis <dam@mellis.org>
+ modified 9 Apr 2012
+ by Tom Igoe
+ http://www.arduino.cc/en/Tutorial/Smoothing
+ This example code is in the public domain.
+ */
+
+/*
  * RGBConverter.h - Arduino library for converting between RGB, HSV and HSL
  * 
  * Ported from the Javascript at http://mjijackson.com/2008/02/rgb-to-hsl-and-rgb-to-hsv-color-model-conversion-algorithms-in-javascript
@@ -36,6 +55,18 @@ uint8_t transitionspeedvariance = 0;// # of frames transition lenght varies by, 
 /*
 
  
+ HMC5883L_Example.pde - Examhsvple sketch for integration with an HMC5883L triple axis magnetomerwe.
+ Copyright (C) 2011 Love Electronics (loveelectronics.co.uk)
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the version 3 GNU General Public License as
+ published by the Free Software Foundation.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ GNU General Public License for more details.
+ You should have received a copy of the GNU General Public License
+ along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 /*****************************************************************************/
 // Example to control LPD8806-based RGB LED Modules in a strip
@@ -56,6 +87,14 @@ uint8_t transitionspeedvariance = 0;// # of frames transition lenght varies by, 
 // coding techniques may be a bit obtuse (e.g. function arrays), so novice
 // programmers may have an easier time starting out with the 'strandtest'
 // program also included with the LPD8806 library.
+
+//#include "LSM303.h"
+//LSM303 compass;
+//LSM303::vector running_min = {
+//  2047, 2047, 2047}
+//, running_max = {
+//  -2048, -2048, -2048};
+
 
 
 //ir remote stuffs
@@ -91,12 +130,12 @@ unsigned long irc2[ircsetup]= {
  279904511,
  279961631}; //kenmore ac remote
  */
+//boolean irsetupflag = false;
 
 
 //##########eeprom stuffs
 //using the eeprom code modified from
 //http://www.openobject.org/opensourceurbanism/Storing_Data#Writing_to_the_EEPROM
-#include <Arduino.h>
 #include <EEPROM.h>
 unsigned long firstTwoBytes;
 unsigned long secondTwoBytes;
@@ -128,8 +167,14 @@ int tCounter = 0;
 //LPD8806 strip = LPD8806(numPixels);
 boolean back = false;
 int crazycounter;
-//##############bluetooth serial port
-HardwareSerial Uart = HardwareSerial();
+//#####################menu stuffs
+uint8_t menuphase = 0,menuphase0 = 0,menuphase1 = 0,menuphase2 = 0;
+//##############compass stuffs
+
+
+
+
+
 
 //#############software debounce for the button and button
 unsigned long lastDebounceTime = 0; // the last time the output pin was toggled
@@ -1299,7 +1344,7 @@ const char led_chars[97][6] PROGMEM = {
   0x00,0x10,0x6c,0x82,0x00,0x00,	// {2
   0x00,0x00,0xfe,0x00,0x00,0x00,	// |3
   0x00,0x82,0x6c,0x10,0x00,0x00,//96
-
+  //  0x18,0x3c,0x7e,0xff,0x7e,0x3c,//97 we added this line and bellow
 
 
 }; //4
@@ -1347,103 +1392,9 @@ long hsv2rgb(long h, byte s, byte v);
 char fixSin(int angle);
 char fixCos(int angle);
 
-// List of image effect and alpha channel rendering functions; the code for
-// each of these appears later in this file. Just a few to start with...
-// simply append new ones to the appropriate list here:
-
-
-// ---------------------------------------------------------------------------
-
-void bluetoothsetup(){
-  Serial.println("Setting up bluetooth module");
-  //inital baud rate of the bluetooth modules we use is 9600. I think we get the best performance
-  //out of 38400 baud because of the timing errors due to the prescaler. we are specifically not using nl/cr
-  //Uart.begin(9600);//change uart baud to match bt default
-  // Uart.print("AT+BAUD1"); //sets bluetooth uart baud at 1200
-  //  Uart.print("AT+BAUD2"); //sets bluetooth uart baud at 2400
-  //  Uart.print("AT+BAUD3"); //sets bluetooth uart baud at 4800
-  //  Uart.print("AT+BAUD4"); //sets bluetooth uart baud at 9600
-  //  Uart.print("AT+BAUD5"); //sets bluetooth uart baud at 19200
-  Uart.print("AT+BAUD6"); //sets bluetooth uart baud at 38400 //set bt uart at 38400, applies on next reboot
-  //  Uart.print("AT+BAUD7"); //sets bluetooth uart baud at 57600
-  //  Uart.print("AT+BAUD8"); //sets bluetooth uart baud at 115200
-  delay(1000);//wait a sec
-  Uart.print("AT+NAMEMax's Galaxy"); //sets name seen on phone
-  delay(1000);
-  Uart.print("AT+PIN1337");//sets pin, act like you know
-  delay(1000); 
-}
-void brutebluetooth(){ //mess your bluetooth chip up? not to fear. this will try all available baud rates and
-  int baudrate = 6; //when finished we will have a bt chip on 38400 baud
-  // Uart.print("AT+BAUD1"); //sets bluetooth uart baud at 1200
-  //  Uart.print("AT+BAUD2"); //sets bluetooth uart baud at 2400
-  //  Uart.print("AT+BAUD3"); //sets bluetooth uart baud at 4800
-  //  Uart.print("AT+BAUD4"); //sets bluetooth uart baud at 9600
-  //  Uart.print("AT+BAUD5"); //sets bluetooth uart baud at 19200
-  //   Uart.print("AT+BAUD6"); //sets bluetooth uart baud at 38400 
-  //  Uart.print("AT+BAUD7"); //sets bluetooth uart baud at 57600
-  //  Uart.print("AT+BAUD8"); //sets bluetooth uart baud at 115200
-  delay(1000);//wait a sec
-  Serial.println("This may take a while");
-  for(int i=0;i<10;i++){
-    Uart.begin(1200);
-    delay(1000);
-    Uart.print("AT+BAUD");
-    Uart.print(baudrate);
-    delay(1000);
-    Serial.print(".");
-    Uart.begin(2400);
-    delay(1000);
-    Uart.print("AT+BAUD");
-    Uart.print(baudrate);
-    delay(1000);
-    Serial.print(".");
-    Uart.begin(4800);
-    delay(1000);
-    Uart.print("AT+BAUD");
-    Uart.print(baudrate);
-    delay(1000);
-    Serial.print(".");
-    Uart.begin(9600);
-    delay(1000);
-    Uart.print("AT+BAUD");
-    Uart.print(baudrate);
-    delay(1000);
-    Serial.print(".");
-    Uart.begin(19200);
-    delay(1000);
-    Uart.print("AT+BAUD");
-    Uart.print(baudrate);
-    delay(1000);
-    Serial.print(".");
-    Uart.begin(38400);
-    delay(1000);
-    Uart.print("AT+BAUD");
-    Uart.print(baudrate);
-    delay(1000);
-    Serial.print(".");
-    Uart.begin(57600);
-    delay(1000);
-    Uart.print("AT+BAUD");
-    Uart.print(baudrate);
-    delay(1000);
-    Serial.print(".");
-    Uart.begin(115200);
-    delay(1000);
-    Uart.print("AT+BAUD");
-    Uart.print(baudrate);
-    delay(1000);
-    Serial.print(".");
-  }
-  Serial.println();
-  Serial.println("done");
-
-} 
-
 void setup() {
   //bring up our serial connections
   Serial.begin(115200);//start serial connection through usb 
-  Uart.begin(38400); //start serial connection to bluetooth module
   strip.begin();//start lpd8806 strip
 
   //check for demo mode flag in eeprom spot 256, set demo accordingly and
@@ -1579,7 +1530,22 @@ void setup() {
   pinMode(irrxpin, INPUT);
   pinMode(19, INPUT);
   EEPreadirc();
-
+  /*
+ if(serialoutput==true){
+   Serial.println();
+   Serial.println("Send a");
+   Serial.println("+ to press button");
+   //Serial.println("B to increase brightness, ");
+   //Serial.println("b to decrease brightness, ");
+   Serial.println("D to enable compass debug,");
+   Serial.println("d to disable compass debug");
+   Serial.println("C to + color scheme");
+   Serial.println("c to - color scheme");
+   Serial.println("M to enter menu");
+   Serial.println("m to go back to run");
+   Serial.println("Starting the I2C interface.");
+   }
+   */
   // Initialize random number generator from a floating analog input.
   randomSeed(analogRead(0));
   memset(imgData, 0, sizeof(imgData)); // Clear image data
@@ -1600,7 +1566,7 @@ void mode(){
     break;
 
   case 1: //menu mode
-  //  menurender();
+    menurender();
     break;
 
   case 2://ir learn mode
@@ -1630,11 +1596,172 @@ void others(){
       irsetup(true); 
     }  
   }
-  //  getSerial();
-  getUart();
   getSerial();
+
+  //  if (counter==255)calibrate(),counter=-255;
+
 }
 
+
+void menurender() {
+  strip.show();
+  byte *backPtr    = &imgData[backImgIdx][0],
+  r, g, b;
+  int  i;
+  for(i=0; i<numPixels; i++) {
+    r = gamma(*backPtr++);
+    g = gamma(*backPtr++);
+    b = gamma(*backPtr++);
+    strip.setPixelColor(i, r, g, b);
+  }
+  menu();
+}
+
+/*void menu() {
+  byte *ptr = &imgData[backImgIdx][0];
+  int type;//placeholder
+  long color[3]={
+    0,0,0      };
+  if(type==0){//type tells us what value we are polling the user for. this 
+    color[0] = red;//will choose colors and set the apropriate values
+    color[1] = green;
+    color[2] = blue;
+  }
+  if(type==1){//type tells us what value we are polling the user for. this 
+    color[0] = purple;
+    color[1] = yellow;
+    color[2] = teal;
+  }
+
+  switch(menuphase){
+  case 0:
+    if(button==1){
+      menuphase0=xyheadingdegreescalibrated/60;
+      menuphase++;
+      button=0;
+      return;
+    }
+    else{
+      for(int i=0; i<numPixels; i++) {
+
+        if(i<=xyheadingdegreescalibrated/60){
+          *ptr++ = color[0] >> 16;
+          *ptr++ = color[0] >> 8;
+          *ptr++ = color[0];
+        }
+        else{
+          // for(int i=0; i<numPixels; i++) {
+          *ptr++=0;
+          *ptr++=0;
+          *ptr++=0;
+        }
+      }
+    }
+    break;
+  case 1:
+    if(button==1){
+      menuphase1=xyheadingdegreescalibrated/60;
+      menuphase++;
+      button=0;
+      return;
+    }
+    else{
+      for(int i=0; i<numPixels; i++) {
+        if(i<=menuphase0){
+          *ptr++ = color[0] >> 16;
+          *ptr++ = color[0] >> 8;
+          *ptr++ = color[0];
+        }
+        else{
+          if(i>=menuphase0&&i<=menuphase0+(xyheadingdegreescalibrated/60)){
+            *ptr++ = color[1] >> 16;
+            *ptr++ = color[1] >> 8;
+            *ptr++ = color[1];
+          }
+          else{
+            *ptr++=0;
+            *ptr++=0;
+            *ptr++=0;
+          }
+        }
+      }
+    }
+    break;
+  case 2:
+    if(button==1){
+      menuphase2=xyheadingdegreescalibrated/60;
+      menuphase++;
+      button=0;
+      return;
+    }
+    else{
+      for(int i=0; i<numPixels; i++) {
+        if(i<=menuphase0){
+          *ptr++ = color[0] >> 16;
+          *ptr++ = color[0] >> 8;
+          *ptr++ = color[0];
+        }
+        else{
+          if(i>=menuphase0&&i<=menuphase0+menuphase1){
+            *ptr++ = color[1] >> 16;
+            *ptr++ = color[1] >> 8;
+            *ptr++ = color[1];
+          }
+          else{
+            if(i>=menuphase0+menuphase1&&i<=menuphase0+menuphase1+(xyheadingdegreescalibrated/60)){
+              *ptr++ = color[2] >> 16;
+              *ptr++ = color[2] >> 8;
+              *ptr++ = color[2];
+            }
+            else{
+              *ptr++=0;
+              *ptr++=0;
+              *ptr++=0;
+            }
+          }
+        }
+      }
+    }
+    break;
+  case 3: // if we are at 3 then the user just selected the last digit.
+    //  Timer1.detachInterrupt();
+    if(serialoutput==true){
+      Serial.println(menuphase0);
+      Serial.println(menuphase1);
+      Serial.println(menuphase2);
+    }
+    uint8_t selection;
+
+    if(menuphase1==-1&&menuphase2==-1){
+      //code to calculate menu selection if only 1st digit supplied
+      selection = menuphase0;
+    }
+    else{
+      if(menuphase2==-1){
+        //code to calculate menu selection if 2 digits supplied.
+        selection = (menuphase0*10)+ menuphase1;
+      }
+      else{
+        //code to calculate menu selection if all 3 digits caught here
+        selection = (menuphase0*100)+(menuphase1*10)+ menuphase2;
+      } 
+    }
+    if(serialoutput==true){
+      Serial.print("selection ");
+      Serial.println(selection);
+    }
+    if(type==0){//0 is pattern selection
+
+
+    }
+    //Timer1.attachInterrupt(callback, 1000000/framerate);//redirect interrupt to menu
+    menuphase=0;
+    break;
+
+   
+  }
+}*/
+// //Timer1 interrupt handler. Called at equal intervals; 60 Hz by default.
 
 // ---------------------------------------------------------------------------
 // Image effect rendering functions. Each effect is generated parametrically
@@ -2123,6 +2250,14 @@ void schemesparklefade(byte idx) {
   }
 }
 
+void schemesparklefadelong(byte idx) {
+}
+
+
+
+
+
+
 
 void onefade(byte idx) {
 
@@ -2287,6 +2422,9 @@ void eightfade(byte idx) {
     fxVars[idx][3]=fxVars[idx][2];
   }
 }
+
+
+
 
 void colorDriftmod(byte idx) {
   if(fxVars[idx][0] == 0) {
@@ -3167,6 +3305,24 @@ void scrolls(byte idx) {
 }
 
 
+
+
+
+
+
+//*******************************************************************
+
+//*******************************************************************
+
+//*******************************************************************
+
+//*******************************************************************
+
+//*******************************************************************
+
+//*******************************************************************
+
+//*******************************************************************
 void colorflag(byte idx){
   colorPOV(idx, 0); 
 }
@@ -4425,6 +4581,14 @@ void schemestretch(byte idx) {
 }
 
 
+
+
+
+
+
+
+
+
 void MonsterHunter(byte idx) {
   if(fxVars[idx][0] == 0) {
     fxVars[idx][1]=random(1536);
@@ -4861,6 +5025,8 @@ void buttonpress(){
   }
 }
 
+
+
 void getSerial(){
   unsigned long num;
   int i;
@@ -4902,12 +5068,18 @@ void getSerial(){
       }
       button=1;
     }
-//    if( cmd == 'd' ) {
-
-//    }
-//    if( cmd == 'D' ) {
-    
-//    }
+    if( cmd == 'd' ) {
+      compassoutput=0;
+      if(serialoutput==true){  
+        Serial.println("disable compass serial output");
+      }
+    }
+    if( cmd == 'D' ) {
+      compassoutput=1;
+      if(serialoutput==true){
+        Serial.println("enable compass serial output");
+      }
+    }
     if( cmd == 'Q' ) {
 
       for (int i =0; i<ircsetup; i++){
@@ -4980,154 +5152,29 @@ void getSerial(){
         Serial.println("Sending bluetooth config commands");
         Serial.println("This will take about 3 secconds");
       }
-      bluetoothsetup(); 
+      //bluetoothsetup(); 
       Serial.println("Sent.");
     }
     if( cmd == 'z' ) { //send bluetooth config command
-      brutebluetooth();
+//      brutebluetooth();
     }
-  //  if( cmd == 'A' ) { //Enable accel output
- 
-//    }
-//    if( cmd == 'a' ) { //disable accel output
-   
-//    }
+    if( cmd == 'A' ) { //Enable accel output
+      if(serialoutput==true){  
+        Serial.println("Enable accel output");
+      }
+      acceloutput=true;
+    }
+    if( cmd == 'a' ) { //disable accel output
+      if(serialoutput==true){  
+        Serial.println("Disable accel output");
+      }
+      acceloutput=false;
+    }
 
     serInStr[0] = 0; // say we've used the string
   }
 
 }
-
-
-
-void getUart(){
-  long num;
-  int i;
-  if(readUartString()) {
-    //   Serial.println(readUartString());
-    // irrecv.pause();
-    delay(10);
-    if(uartoutput==true){
-      //    Uart.println(urtInStr);
-    }
-    char ucmd = urtInStr[0]; // first char is command
-    char* urt = urtInStr;
-    while( *++urt == ' ' ); // got past any intervening whitespace
-    num = atol(urt); // the rest is arguments (maybe)
-    if( ucmd == 'J' ) { //
-      if(serialoutput==true){  
-        //     Serial.println(".");
-      }
-      for(i=0;i<8;i++){
-        num = atol(urt); // the rest is arguments (maybe)
-        //      num=num>>8;
-        usercolorscheme[i] = num;//what?
-
-        Serial.println(num, HEX);
-
-        while( *++urt != ' ' ){ // got to intervening whitespace
-
-        }
-        while( *++urt == ' ' ); // got past any intervening whitespace
-        //  *++str;
-        //   num = atoi(str); // the rest is arguments (maybe)
-
-      }
-      Serial.println();
-      colorschemeselector=0;
-      //  Serial.println("Read user color scheme");
-
-    }
-    if( ucmd == 'P' ) {//P means the next character is a pattern we are getting.
-      if(num>0){
-        pattern = num;//in 
-      }
-      tCounter=0;//start the transition
-    }
-    if( ucmd == 'C' ) {//C means color scheme read through atoi comes next
-      if(num>0){
-        colorschemeselector = num;//in
-      }
-    }
-    if( ucmd == 'c' ) {//C means color scheme read through atoi comes next
-      if(num>0){
-        colorschemeselector = num;//in
-      }
-    }
-
-    if( ucmd == 'B' ) {
-      brightness=num;//self explanitory.
-    }
-    if( ucmd == 'H' ) {//handshake. when recieved reply with 'ver#'
-      Uart.print("ver");
-      Uart.print(galaxyversion);
-    }
-    if( ucmd == 'R' ) {//re-init pattern
-      fxVars[0][0]=0;
-      //button=1;
-    }
-    if( ucmd == 'C' ) {//re-init pattern
-      //   fxVars[0][0]=0;
-      longbutton=1;
-    }
-    if( ucmd == 'A' ) {//re-init pattern
-      //   fxVars[0][0]=0;
-      opmode=1;
-    }
-
-    /*    if( ucmd == 'Q' ) {
-     
-     for (int i =0; i<ircsetup; i++){
-     Uart.print (irc[i]);
-     Uart.print(" , " );
-     Uart.println (i);
-     
-     }
-     Uart.println();
-     for (int i =0; i<ircsetup; i++){
-     Uart.print (irc2[i]);
-     Uart.print(" , " );
-     Uart.println (i);
-     }
-     }
-     */
-    /*    if( ucmd == 'I' ) {
-     //Timer1.detachInterrupt();
-     if(uartoutput==true){ 
-     Uart.println("Entering irsetup");
-     }
-     opmode=2;
-     }
-     //  boolean serialoutput=false;// will the serial respond?
-     */
-    if( ucmd == 'P' ) {//P means pattern number read through atoi comes next
-
-      pattern = num;//in
-      button=1;
-    }
-    if( ucmd == 'D' ) {//D means toggle demo mode
-      demo=!demo;
-      if(demo==1){
-        Uart.println("Demo mode enabled");
-      }
-      else{
-        Uart.println("Demo mode disabled");
-      }
-    }
-    //   if( ucmd == 'A' ) {//D means toggle demo mode
-    //     compassoutput=!compassoutput;
-    //     if(compassoutput==1){
-    //       Uart.println("compass output enabled");
-    //     }
-    //    else{
-    //       Uart.println("compass outputdisabled");
-    //     }
-    //   }
-    urtInStr[0] = 0; // say we've used the string
-    //irrecv.resume();  
-  }
-}
-
 //read a string from the serial and store it in an array
 //you must supply the array variable
 uint8_t readSerialString()
@@ -5141,22 +5188,6 @@ uint8_t readSerialString()
   int i = 0;
   while (Serial.available()) {
     serInStr[i] = Serial.read(); // FIXME: doesn't check buffer overrun
-    i++;
-  }
-  //serInStr[i] = 0; // indicate end of read string
-  return i; // return number of chars read
-}
-uint8_t readUartString()
-{
-  if(!Uart.available()) {
-    return 0;
-  }
-  delay(10); // wait a little for serial data
-
-  memset( serInStr, 0, sizeof(serInStr) ); // set it all to zero
-  int i = 0;
-  while (Uart.available()) {
-    urtInStr[i] = Uart.read(); // FIXME: doesn't check buffer overrun
     i++;
   }
   //serInStr[i] = 0; // indicate end of read string
@@ -5539,6 +5570,8 @@ unsigned long threeway_min(double a, double b, double c) {
   return min(a, min(b, c));
 }
 
+
+
 void (*renderEffect[])(byte) = {
   /*
    * Fixed color patterns
@@ -5555,6 +5588,7 @@ void (*renderEffect[])(byte) = {
   sineChase, //stock  
   wavyFlag,// stock
   simpleOrbit,//not sure whats going on here...
+  //sineCompass, //needs smoothing
   POV,
   /*
    * Color scheme responsive patterns
@@ -5572,14 +5606,33 @@ void (*renderEffect[])(byte) = {
   fourfade,
   petechase,
   Whacky,
+  //  halfrandom,
+  //  quarterrandom,
+  //  accelschemesparklefade,//increases in colors and brightness depending on how hard you shake it
+
+  // compassschemesparklefade,
+  //  eightfade,//eight going around leaving a train(broken)
+  // blankfade,
+  //  accel1,
   onefade,//one going around leaving a trail
+  //schemesparklefadelong,
   schemesparklefade,
   schemetestfade,//needs to "dance"
   schemetestlongfade,//needs to "dance"
-  mixColor8Chase,//almost sinechase but with my mixcolor8//is 4 byte * >> faster?
+  mixColor8Chase,//almost sinechase but with my mixcolor8
+  //is 4 byte * >> faster?
   who,//untested
   rainbowChase, //stock
   raindance,//smoothly picks a new speed every so often
+//  compassheading,//compass X,Y,Z mapped to one blip each
+//  compassheadingRGBFade,//fade RGB according to compass xyz
+//  Dice,//plane calculation 
+  // what,
+  // when,
+  // where,
+  // why,
+  // how,
+  //  schemestretch,//
   schemetest,//non moving
   schemetestlong,//non moving
   schemefade,//like color drift but for schemes
@@ -5644,6 +5697,25 @@ void (*renderEffect[])(byte) = {
   Bubbles,
   Move,
   DiagCheckers,
+
+  //##########in development###########
+  // somekindaChase,
+  //blank,
+  // thingeyDrift,
+  //  rotate,//not sure whats going on here
+  //  rainStrobe2at1,
+  //strobefans2at1,
+  // schemetest2at1,
+  //  MonsterStrobe2at1,
+  //  schemetestlongrain2at1,
+  // schemetestrain2at1,    
+
+  // onespin,//not up to par
+  // onespinfade,//interesting but not what i was going for
+  //needs to store index and message string in progmem
+  // 
+
+
 }
 ,
 (*renderAlpha[])(void) = {
@@ -5652,8 +5724,11 @@ void (*renderEffect[])(byte) = {
   //  renderAlpha02 
 };
 
+
 void callback() {
   strip.show();
+
+
   // Very first thing here is to issue the strip data generated from the
   // *previous* callback. It's done this way on purpose because show() is
   // roughly constant-time, so the refresh will always occur on a uniform
@@ -5766,5 +5841,3 @@ void callback() {
     }
   }
 }
-
-
