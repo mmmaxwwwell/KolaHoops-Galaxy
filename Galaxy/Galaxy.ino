@@ -17,118 +17,7 @@ uint8_t patternswitchspeedvariance = 0;//# of frames the pattern switch speed ca
 uint16_t transitionspeed = 30;// # of framestransition lasts 
 uint8_t transitionspeedvariance = 0;// # of frames transition lenght varies by, total var 2X, 1X in either + or -
 
-void (*renderEffect[])(byte) = {
-  /*
-   * Fixed color patterns
-   */
-  sparklefade, 
-  rainbowChase, //stock
-  colorDrift,//fades the whole hoop quickly around the color wheel
-  raindance,//changes speeds quickly and smoothly
-  sineChase, //stock
-  sineDance, //not set up to dance yet just a placeholder
-  rainbowsineChase,//needs to be stretched to fit entire color wheel
-  longsinechasecolordrift,//needs to be stretched to fit hoop
-  colorDriftsineChase,//ok
-  sineChase, //stock  
-  wavyFlag,// stock
-  simpleOrbit,//not sure whats going on here...
-  POV,
-  /*
-   * Color scheme responsive patterns
-   */
-  HeartPOV,
-  MazePOV,
-  StarPOV,
-  WavyPOV,
-  MoonPOV,
-  CatPOV,
-  OooPOV,
-  ChainsPOV,
-  MiniTriPOV,
-  schemetest,//non moving
-  fourfade,
-  petechase,
-  Whacky,
-  onefade,//one going around leaving a trail
-  schemesparklefade,
-  schemetestfade,//needs to "dance"
-  schemetestlongfade,//needs to "dance"
-  mixColor8Chase,//almost sinechase but with my mixcolor8//is 4 byte * >> faster?
-  who,//untested
-  rainbowChase, //stock
-  raindance,//smoothly picks a new speed every so often
-  schemetest,//non moving
-  schemetestlong,//non moving
-  schemefade,//like color drift but for schemes
-  MonsterHunter,
-  pacman,   //mr pac man bounces back from end to end and builds 
-  strobe, //strobes to color schemes
-  fans, 
-  scrolls,//need to replace with older version
- //POV**************************
-  Dance,//Good - Hard to see
-  SideSquare,
-  BigBricks,
-  YUM,
-  SparkleLights,
-  Bam,
-  IDK,
-  FourColorStrobe,
-  TwoColorStrobe,
-  OneColorStrobe,
-  SpreadPOV,//*****************************
-  TimePOV,
-  SlagPOV,
-  AmericanFlagPOV,
-  RingsPOV,
-  ArrowPOV,//        These are
-  MultiBoxPOV,//      New Patterns
-  NewPOV,//            3-11-13
-  CrossTheTPOV,
-  TheBigDownPOV,
-  TheBigDownSquarePOV,
-  UpDownPOV,
-  DoubleDimePOV,//**************************
-  FourWayCheckersPOV,
-  FourColorCheckersPOV,
-  ZigZagPOV,
-  CrazyCirclesPOV,
-  testcolorPOV,
-  colorflag,
-  PlaidPOV,
-  SmallCirclePOV,
-  QuadHelixPOV,
-  WavePOV,
-  HeartPOV,
-  MazePOV,
-  StarPOV,
-  WavyPOV,
-  MoonPOV,
-  CatPOV,
-  OooPOV,
-  ChainsPOV,
-  MiniTriPOV,
-  FourSquare,
-  Checkerboard,
-  FourSquare,
-  Checkerboard,
-  Slider,
-  Smiley,
-  Float,
-  Zag,
-  NewCircle,
-  DoubleHelix,
-  Bubbles,
-  Move,
-  DiagCheckers,
-}
-,
-(*renderAlpha[])(void) = {
-  renderAlpha00,
-  renderAlpha01,
-  //  renderAlpha02 
-};
+
 
 //########################################################################################################################
 /*
@@ -207,6 +96,7 @@ unsigned long irc2[ircsetup]= {
 //##########eeprom stuffs
 //using the eeprom code modified from
 //http://www.openobject.org/opensourceurbanism/Storing_Data#Writing_to_the_EEPROM
+#include <Arduino.h>
 #include <EEPROM.h>
 unsigned long firstTwoBytes;
 unsigned long secondTwoBytes;
@@ -214,7 +104,6 @@ unsigned long secondTwoBytes;
 #include <avr/pgmspace.h>
 #include "SPI.h"
 #include "LPD8806.h"
-#include "TimerOne.h"
 #include <Wire.h>
 // Declare the number of pixels in strand; 32 = 32 pixels in a row. The
 // LED strips have 32 LEDs per meter, but you can extend or cut the strip.
@@ -1746,120 +1635,7 @@ void others(){
   getSerial();
 }
 
-void callback() {
-  strip.show();
-  // Very first thing here is to issue the strip data generated from the
-  // *previous* callback. It's done this way on purpose because show() is
-  // roughly constant-time, so the refresh will always occur on a uniform
-  // beat with respect to the //Timer1 interrupt. The various effects
-  // rendering and compositing code is not constant-time, and that
-  // unevenness would be apparent if show() were called at the end.
 
-
-  //  getir();
-
-  byte frontImgIdx = 1 - backImgIdx,
-  *backPtr = &imgData[backImgIdx][0],
-  r, g, b;
-  int i;
-
-  // Always render back image based on current effect index:
-  (*renderEffect[fxIdx[backImgIdx]])(backImgIdx);
-  // Front render and composite only happen during transitions...
-  if(tCounter > 0) {
-    // Transition in progress
-    byte *frontPtr = &imgData[frontImgIdx][0];
-    int alpha, inv;
-
-    // Render front image and alpha mask based on current effect indices...
-    (*renderEffect[fxIdx[frontImgIdx]])(frontImgIdx);
-    (*renderAlpha[fxIdx[2]])();
-
-
-    // ...then composite front over back:
-    for(i=0; i<numPixels; i++) {
-      alpha = alphaMask[i] + 1; // 1-256 (allows shift rather than divide)
-      inv = 257 - alpha; // 1-256 (ditto)
-      // r, g, b are placed in variables (rather than directly in the
-      // setPixelColor parameter list) because of the postincrement pointer
-      // operations -- C/C++ leaves parameter evaluation order up to the
-      // implementation; left-to-right order isn't guaranteed.
-      r = gamma((*frontPtr++ * alpha + *backPtr++ * inv) >> 8);
-      g = gamma((*frontPtr++ * alpha + *backPtr++ * inv) >> 8);
-      b = gamma((*frontPtr++ * alpha + *backPtr++ * inv) >> 8);
-      strip.setPixelColor(i, r, g, b);
-    }
-  }
-  else {
-    // No transition in progress; just show back image
-
-      for(i=0; i<numPixels;i++) {
-      // See note above re: r, g, b vars.
-      r = gamma(*backPtr++);
-      g = gamma(*backPtr++);
-      b = gamma(*backPtr++);
-      strip.setPixelColor(i, r, g, b);
-    }
-  }
-
-  // Count up to next transition (or end of current one):
-  if(demo==1||tCounter>=0){
-    tCounter++;
-  }
-  if(button==1){
-    tCounter=0;
-    button=0;
-  }
-
-  if(tCounter == 0) { // Transition start
-    if(colordemo==true){
-      colorschemeselector=random(256);
-    }
-
-    if(pattern>=0){
-      fxIdx[frontImgIdx]=pattern;
-      pattern=-1;//
-    }
-    else{
-      if(back==true){
-
-        //  fxIdx[frontImgIdx]--;
-        if(fxIdx[frontImgIdx]==0){
-          fxIdx[frontImgIdx]=(sizeof(renderEffect) / sizeof(renderEffect[0]))-1;
-        }
-        else{
-          fxIdx[frontImgIdx]--;
-        }
-        back=false;
-      }
-      else{
-        fxIdx[frontImgIdx]++;//instead of random now its sequential
-      }
-    }
-    if(fxIdx[frontImgIdx]>=(sizeof(renderEffect) / sizeof(renderEffect[0]))){
-      fxIdx[frontImgIdx]=0;
-    }
-
-    fxIdx[2] = random((sizeof(renderAlpha) / sizeof(renderAlpha[0])));
-    transitionTime = random(transitionspeed-transitionspeedvariance, transitionspeed+transitionspeedvariance); // depends on frame rate. if 240hz 120 frame = 1/2 sec
-    fxVars[frontImgIdx][0] = 0; // Effect not yet initialized
-    fxVars[2][0] = 0; // Transition not yet initialized
-  }
-  else if(tCounter >= transitionTime) { // End transition
-
-
-    fxIdx[backImgIdx] = fxIdx[frontImgIdx]; // Move front effect index to back
-    backImgIdx = 1 - backImgIdx; // Invert back index
-
-      if(demo==0){ //works?
-      tCounter = -1; // hold image on the edge
-      button=0;
-    }
-    else{
-      tCounter = random(-(patternswitchspeed-patternswitchspeedvariance),-(patternswitchspeed+patternswitchspeedvariance)); // Hold image ? to ? seconds
-    }
-  }
-}
 // ---------------------------------------------------------------------------
 // Image effect rendering functions. Each effect is generated parametrically
 // (that is, from a set of numbers, usually randomly seeded). Because both
@@ -5762,3 +5538,233 @@ unsigned long threeway_max(double a, double b, double c) {
 unsigned long threeway_min(double a, double b, double c) {
   return min(a, min(b, c));
 }
+
+void (*renderEffect[])(byte) = {
+  /*
+   * Fixed color patterns
+   */
+  sparklefade, 
+  rainbowChase, //stock
+  colorDrift,//fades the whole hoop quickly around the color wheel
+  raindance,//changes speeds quickly and smoothly
+  sineChase, //stock
+  sineDance, //not set up to dance yet just a placeholder
+  rainbowsineChase,//needs to be stretched to fit entire color wheel
+  longsinechasecolordrift,//needs to be stretched to fit hoop
+  colorDriftsineChase,//ok
+  sineChase, //stock  
+  wavyFlag,// stock
+  simpleOrbit,//not sure whats going on here...
+  POV,
+  /*
+   * Color scheme responsive patterns
+   */
+  HeartPOV,
+  MazePOV,
+  StarPOV,
+  WavyPOV,
+  MoonPOV,
+  CatPOV,
+  OooPOV,
+  ChainsPOV,
+  MiniTriPOV,
+  schemetest,//non moving
+  fourfade,
+  petechase,
+  Whacky,
+  onefade,//one going around leaving a trail
+  schemesparklefade,
+  schemetestfade,//needs to "dance"
+  schemetestlongfade,//needs to "dance"
+  mixColor8Chase,//almost sinechase but with my mixcolor8//is 4 byte * >> faster?
+  who,//untested
+  rainbowChase, //stock
+  raindance,//smoothly picks a new speed every so often
+  schemetest,//non moving
+  schemetestlong,//non moving
+  schemefade,//like color drift but for schemes
+  MonsterHunter,
+  pacman,   //mr pac man bounces back from end to end and builds 
+  strobe, //strobes to color schemes
+  fans, 
+  scrolls,//need to replace with older version
+ //POV**************************
+  Dance,//Good - Hard to see
+  SideSquare,
+  BigBricks,
+  YUM,
+  SparkleLights,
+  Bam,
+  IDK,
+  FourColorStrobe,
+  TwoColorStrobe,
+  OneColorStrobe,
+  SpreadPOV,//*****************************
+  TimePOV,
+  SlagPOV,
+  AmericanFlagPOV,
+  RingsPOV,
+  ArrowPOV,//        These are
+  MultiBoxPOV,//      New Patterns
+  NewPOV,//            3-11-13
+  CrossTheTPOV,
+  TheBigDownPOV,
+  TheBigDownSquarePOV,
+  UpDownPOV,
+  DoubleDimePOV,//**************************
+  FourWayCheckersPOV,
+  FourColorCheckersPOV,
+  ZigZagPOV,
+  CrazyCirclesPOV,
+  testcolorPOV,
+  colorflag,
+  PlaidPOV,
+  SmallCirclePOV,
+  QuadHelixPOV,
+  WavePOV,
+  HeartPOV,
+  MazePOV,
+  StarPOV,
+  WavyPOV,
+  MoonPOV,
+  CatPOV,
+  OooPOV,
+  ChainsPOV,
+  MiniTriPOV,
+  FourSquare,
+  Checkerboard,
+  FourSquare,
+  Checkerboard,
+  Slider,
+  Smiley,
+  Float,
+  Zag,
+  NewCircle,
+  DoubleHelix,
+  Bubbles,
+  Move,
+  DiagCheckers,
+}
+,
+(*renderAlpha[])(void) = {
+  renderAlpha00,
+  renderAlpha01,
+  //  renderAlpha02 
+};
+
+void callback() {
+  strip.show();
+  // Very first thing here is to issue the strip data generated from the
+  // *previous* callback. It's done this way on purpose because show() is
+  // roughly constant-time, so the refresh will always occur on a uniform
+  // beat with respect to the //Timer1 interrupt. The various effects
+  // rendering and compositing code is not constant-time, and that
+  // unevenness would be apparent if show() were called at the end.
+
+
+  //  getir();
+
+  byte frontImgIdx = 1 - backImgIdx,
+  *backPtr = &imgData[backImgIdx][0],
+  r, g, b;
+  int i;
+
+  // Always render back image based on current effect index:
+  (*renderEffect[fxIdx[backImgIdx]])(backImgIdx);
+  // Front render and composite only happen during transitions...
+  if(tCounter > 0) {
+    // Transition in progress
+    byte *frontPtr = &imgData[frontImgIdx][0];
+    int alpha, inv;
+
+    // Render front image and alpha mask based on current effect indices...
+    (*renderEffect[fxIdx[frontImgIdx]])(frontImgIdx);
+    (*renderAlpha[fxIdx[2]])();
+
+
+    // ...then composite front over back:
+    for(i=0; i<numPixels; i++) {
+      alpha = alphaMask[i] + 1; // 1-256 (allows shift rather than divide)
+      inv = 257 - alpha; // 1-256 (ditto)
+      // r, g, b are placed in variables (rather than directly in the
+      // setPixelColor parameter list) because of the postincrement pointer
+      // operations -- C/C++ leaves parameter evaluation order up to the
+      // implementation; left-to-right order isn't guaranteed.
+      r = (*frontPtr++ * alpha + *backPtr++ * inv) >> 8;
+      g = (*frontPtr++ * alpha + *backPtr++ * inv) >> 8;
+      b = (*frontPtr++ * alpha + *backPtr++ * inv) >> 8;
+      strip.setPixelColor(i, gamma(r), gamma(g), gamma(b));
+    }
+  }
+  else {
+    // No transition in progress; just show back image
+
+      for(i=0; i<numPixels;i++) {
+      // See note above re: r, g, b vars.
+      r = gamma(*backPtr++);
+      g = gamma(*backPtr++);
+      b = gamma(*backPtr++);
+      strip.setPixelColor(i, r, g, b);
+    }
+  }
+
+  // Count up to next transition (or end of current one):
+  if(demo==1||tCounter>=0){
+    tCounter++;
+  }
+  if(button==1){
+    tCounter=0;
+    button=0;
+  }
+
+  if(tCounter == 0) { // Transition start
+    if(colordemo==true){
+      colorschemeselector=random(256);
+    }
+
+    if(pattern>=0){
+      fxIdx[frontImgIdx]=pattern;
+      pattern=-1;//
+    }
+    else{
+      if(back==true){
+
+        //  fxIdx[frontImgIdx]--;
+        if(fxIdx[frontImgIdx]==0){
+          fxIdx[frontImgIdx]=(sizeof(renderEffect) / sizeof(renderEffect[0]))-1;
+        }
+        else{
+          fxIdx[frontImgIdx]--;
+        }
+        back=false;
+      }
+      else{
+        fxIdx[frontImgIdx]++;//instead of random now its sequential
+      }
+    }
+    if(fxIdx[frontImgIdx]>=(sizeof(renderEffect) / sizeof(renderEffect[0]))){
+      fxIdx[frontImgIdx]=0;
+    }
+
+    fxIdx[2] = random((sizeof(renderAlpha) / sizeof(renderAlpha[0])));
+    transitionTime = random(transitionspeed-transitionspeedvariance, transitionspeed+transitionspeedvariance); // depends on frame rate. if 240hz 120 frame = 1/2 sec
+    fxVars[frontImgIdx][0] = 0; // Effect not yet initialized
+    fxVars[2][0] = 0; // Transition not yet initialized
+  }
+  else if(tCounter >= transitionTime) { // End transition
+
+
+    fxIdx[backImgIdx] = fxIdx[frontImgIdx]; // Move front effect index to back
+    backImgIdx = 1 - backImgIdx; // Invert back index
+
+      if(demo==0){ //works?
+      tCounter = -1; // hold image on the edge
+      button=0;
+    }
+    else{
+      tCounter = random(-(patternswitchspeed-patternswitchspeedvariance),-(patternswitchspeed+patternswitchspeedvariance)); // Hold image ? to ? seconds
+    }
+  }
+}
+
+
